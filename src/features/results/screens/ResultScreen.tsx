@@ -4,6 +4,7 @@ import React, {useMemo} from 'react';
 import {Image, StyleSheet, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 
+import {useLanguage} from '../../../app/LanguageContext';
 import {Screen} from '../../../components/Screen';
 import {SectionHeader} from '../../../components/ui/SectionHeader';
 import {AppCard} from '../../../components/ui/AppCard';
@@ -34,47 +35,42 @@ function formatPercent(value: number | null | undefined): string {
   return `${Math.round(value)}%`;
 }
 
-function getSeverityMeta(severity?: ResultSeverity | null) {
+function getSeverityMeta(severity: ResultSeverity | null | undefined, t: (section: any, key: any) => string) {
   switch (severity) {
     case 'normal':
       return {
-        title: 'Normal range',
+        title: t('result', 'normal'),
         color: '#1F8A4D',
         bg: '#EAF8F0',
-        description:
-          'The estimated hemoglobin value is within the expected range for the applied demographic group.',
+        description: t('result', 'disclaimer'),
       };
     case 'mild':
       return {
-        title: 'Mild anemia risk',
+        title: `${t('result', 'mild')} — ${t('result', 'status')}`,
         color: '#B7791F',
         bg: '#FFF7E8',
-        description:
-          'The estimated hemoglobin value suggests a mild reduction relative to the applied demographic threshold.',
+        description: t('result', 'disclaimer'),
       };
     case 'moderate':
       return {
-        title: 'Moderate anemia risk',
+        title: `${t('result', 'moderate')} — ${t('result', 'status')}`,
         color: '#C05621',
         bg: '#FFF1EC',
-        description:
-          'The estimated hemoglobin value suggests a moderate reduction and should be clinically reviewed.',
+        description: t('result', 'disclaimer'),
       };
     case 'severe':
       return {
-        title: 'Severe anemia risk',
+        title: `${t('result', 'severe')} — ${t('result', 'status')}`,
         color: '#C53030',
         bg: '#FFF0F0',
-        description:
-          'The estimated hemoglobin value is markedly low and requires prompt professional evaluation.',
+        description: t('result', 'disclaimer'),
       };
     default:
       return {
-        title: 'Result unavailable',
+        title: t('common', 'error'),
         color: colors.textPrimary,
         bg: colors.surface,
-        description:
-          'The application could not determine a valid interpretation.',
+        description: t('result', 'disclaimer'),
       };
   }
 }
@@ -107,7 +103,7 @@ function InfoRow({label, value}: {label: string; value: string}) {
 export function ResultScreen({route, navigation}: Props) {
   const {imagePath, hbValue, confidence, severity, analysis} = route.params;
 
-  const severityMeta = useMemo(() => getSeverityMeta(severity), [severity]);
+  const severityMeta = useMemo(() => getSeverityMeta(severity, t), [severity, t]);
 
   const engineLabel =
     analysis?.engine === 'colorimetric-regression'
@@ -147,14 +143,14 @@ export function ResultScreen({route, navigation}: Props) {
       ? analysis.colorFeatures.normalizedRedness.toFixed(4)
       : '—';
 
-  const confidenceLabel = getConfidenceLabel(confidence);
-  const qualityLabel = getQualityLabel(qualityScore);
+  const confidenceLabel = getConfidenceLabel(confidence, t);
+  const qualityLabel = getQualityLabel(qualityScore, t);
 
   return (
     <Screen scrollable>
       <SectionHeader
-        title="Scan Result"
-        subtitle="Local colorimetric hemoglobin estimation"
+        title={t('result', 'title')}
+        subtitle={t('scan', 'localProcessing')}
       />
 
       {imagePath ? (
@@ -178,7 +174,7 @@ export function ResultScreen({route, navigation}: Props) {
       <AppCard style={styles.metricsCard}>
         <View style={styles.metricItem}>
           <Text style={styles.metricValue}>{formatPercent(confidence)}</Text>
-          <Text style={styles.metricLabel}>Confidence</Text>
+          <Text style={styles.metricLabel}>{t('result', 'confidence')}</Text>
           <Text style={styles.metricHint}>{confidenceLabel}</Text>
         </View>
 
@@ -188,22 +184,22 @@ export function ResultScreen({route, navigation}: Props) {
           <Text style={styles.metricValue}>
             {typeof qualityScore === 'number' ? qualityScore : '—'}
           </Text>
-          <Text style={styles.metricLabel}>Quality Score</Text>
+          <Text style={styles.metricLabel}>{t('scan', 'scanQuality')}</Text>
           <Text style={styles.metricHint}>{qualityLabel}</Text>
         </View>
       </AppCard>
 
       <AppCard style={styles.section}>
-        <Text style={styles.sectionTitle}>Interpretation</Text>
+        <Text style={styles.sectionTitle}>{t('result', 'status')}</Text>
         <View style={styles.divider} />
-        <InfoRow label="Estimated Hb" value={formatHb(hbValue)} />
-        <InfoRow label="Severity" value={severityMeta.title} />
-        <InfoRow label="Confidence" value={formatPercent(confidence)} />
-        <InfoRow label="Quality" value={qualityLabel} />
+        <InfoRow label={t('result', 'hemoglobin')} value={formatHb(hbValue)} />
+        <InfoRow label={t('result', 'status')} value={severityMeta.title} />
+        <InfoRow label={t('result', 'confidence')} value={formatPercent(confidence)} />
+        <InfoRow label={t('scan', 'scanQuality')} value={qualityLabel} />
       </AppCard>
 
       <AppCard style={styles.section}>
-        <Text style={styles.sectionTitle}>Analysis Details</Text>
+        <Text style={styles.sectionTitle}>{t('scan', 'processing')}</Text>
         <View style={styles.divider} />
         <InfoRow label="Engine" value={engineLabel} />
         <InfoRow label="Model version" value={modelVersion} />
@@ -216,17 +212,15 @@ export function ResultScreen({route, navigation}: Props) {
       </AppCard>
 
       <AppCard style={styles.section}>
-        <Text style={styles.sectionTitle}>Clinical Note</Text>
+        <Text style={styles.sectionTitle}>{t('result', 'disclaimer')}</Text>
         <View style={styles.divider} />
         <Text style={styles.noteText}>
-          This result is generated locally on the device using embedded color
-          analysis and regression logic. It is intended for screening and
-          estimation support only, not as a definitive medical diagnosis.
+          {t('result', 'disclaimer')}
         </Text>
       </AppCard>
 
       <PrimaryButton
-        title="New Scan"
+        title={t('result', 'newScan')}
         onPress={() => navigation.navigate('MainTabs')}
       />
     </Screen>
