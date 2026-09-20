@@ -1,6 +1,7 @@
 // src/features/profile/screens/ProfileScreen.tsx
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Alert,
@@ -117,6 +118,31 @@ export function ProfileScreen() {
   const [editedName, setEditedName] = useState('');
   const [editedDob, setEditedDob] = useState('');
   const [totalScans, setTotalScans] = useState(0);
+
+  useEffect(() => {
+    AsyncStorage.multiGet(['@hbmonitor_patient_mode', '@hbmonitor_child_name']).then(values => {
+      const mode = values[0][1];
+      const name = values[1][1];
+      if (mode === 'child' || mode === 'adult') setPatientMode(mode);
+      if (name) setChildName(name);
+    });
+  }, []);
+
+  const handlePatientMode = async (mode: 'adult' | 'child') => {
+    setPatientMode(mode);
+    await AsyncStorage.setItem('@hbmonitor_patient_mode', mode);
+  };
+
+  const handleChildName = async (value: string) => {
+    setChildName(value);
+    await AsyncStorage.setItem('@hbmonitor_child_name', value);
+  };
+
+  const handleLanguageChange = async (nextLanguage: 'ar' | 'en') => {
+    if (nextLanguage === language) return;
+    await setLanguage(nextLanguage);
+    Alert.alert(t('settings', 'languageChanged'), t('settings', 'restartRequired'));
+  };
 
   const ageLabel = useMemo(
     () => calculateAgeLabel(medical.dateOfBirth || null),
@@ -374,6 +400,37 @@ export function ProfileScreen() {
         )}
 
         <Text style={styles.profileEmail}>{profile.email}</Text>
+      </AppCard>
+
+      <AppCard style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('child', 'currentPatient')}</Text>
+        <SectionDivider />
+        <Text style={styles.fieldLabel}>{t('child', 'patientMode')}</Text>
+        <View style={styles.sexRow}>
+          {(['adult', 'child'] as const).map(mode => (
+            <TouchableOpacity
+              key={mode}
+              style={[styles.sexBtn, patientMode === mode && styles.sexBtnActive]}
+              onPress={() => handlePatientMode(mode)}>
+              <Text style={[styles.sexBtnText, patientMode === mode && styles.sexBtnTextActive]}>
+                {mode === 'child' ? t('profile', 'child') : t('profile', 'adult')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {patientMode === 'child' ? (
+          <>
+            <Text style={[styles.fieldLabel, {marginTop: spacing.md}]}>{t('child', 'childName')}</Text>
+            <TextInput
+              value={childName}
+              onChangeText={handleChildName}
+              style={styles.inlineInput}
+              placeholder={t('child', 'childName')}
+              placeholderTextColor={colors.textSecondary}
+            />
+            <Text style={styles.disclaimerText}>{t('child', 'pediatricNote')}</Text>
+          </>
+        ) : null}
       </AppCard>
 
       <AppCard style={styles.statsCard}>
