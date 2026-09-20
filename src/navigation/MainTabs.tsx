@@ -9,6 +9,7 @@ import {ScanScreen} from '../features/scan/screens/ScanScreen';
 import {AnalyticsScreen} from '../features/analytics/screens/AnalyticsScreen';
 import {ProfileScreen} from '../features/profile/screens/ProfileScreen';
 import {colors} from '../theme/colors';
+import {useLanguage} from '../app/LanguageContext';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -41,22 +42,22 @@ export function MainTabs() {
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{tabBarLabel: ({focused}) => <TabLabel label="Home" focused={focused} />}}
+        options={{tabBarLabel: ({focused}) => <TabLabel label={t('navigation', 'home')} focused={focused} />}}
       />
       <Tab.Screen
         name="Scan"
         component={ScanScreen}
-        options={{tabBarLabel: ({focused}) => <TabLabel label="Scan" focused={focused} />}}
+        options={{tabBarLabel: ({focused}) => <TabLabel label={t('navigation', 'scan')} focused={focused} />}}
       />
       <Tab.Screen
         name="Analytics"
         component={AnalyticsScreen}
-        options={{tabBarLabel: ({focused}) => <TabLabel label="Analytics" focused={focused} />}}
+        options={{tabBarLabel: ({focused}) => <TabLabel label={t('navigation', 'analytics')} focused={focused} />}}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{tabBarLabel: ({focused}) => <TabLabel label="Profile" focused={focused} />}}
+        options={{tabBarLabel: ({focused}) => <TabLabel label={t('navigation', 'profile')} focused={focused} />}}
       />
     </Tab.Navigator>
   );
