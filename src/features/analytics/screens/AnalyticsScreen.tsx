@@ -132,11 +132,11 @@ function getSeverityTone(
   return 'warning';
 }
 
-function TrendBars({results}: {results: HbResult[]}) {
+function TrendBars({results, emptyLabel}: {results: HbResult[]; emptyLabel: string}) {
   if (results.length === 0) {
     return (
       <View style={styles.chartEmpty}>
-        <Text style={styles.chartEmptyText}>{t('home', 'noResults')}</Text>
+        <Text style={styles.chartEmptyText}>{emptyLabel}</Text>
       </View>
     );
   }
@@ -375,7 +375,7 @@ export function AnalyticsScreen() {
     latestSeverity,
   } = data;
 
-  const trend = getTrend(weeklyAvg, prevWeekAvg);
+  const trend = getTrend(weeklyAvg, prevWeekAvg, t);
 
   return (
     <Screen scrollable refreshing={isRefreshing} onRefresh={onRefresh}>
@@ -427,7 +427,7 @@ export function AnalyticsScreen() {
 
       <AppCard style={styles.chartCard}>
         <Text style={styles.cardTitle}>{t('analytics', 'history')}</Text>
-        <TrendBars results={recentResults} />
+        <TrendBars results={recentResults} emptyLabel={t('home', 'noResults')} />
         <Text style={styles.chartNote}>
           {recentResults.length > 0
             ? `${recentResults.length} — ${t('analytics', 'history')}`
