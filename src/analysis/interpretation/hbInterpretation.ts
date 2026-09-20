@@ -3,6 +3,7 @@
 export type HbSeverity = 'normal' | 'mild' | 'moderate' | 'severe';
 
 export type DemographicGroup =
+  | 'enfant_moins_6_mois'
   | 'enfant_6_23_mois'
   | 'enfant_24_59_mois'
   | 'enfant_5_11_ans'
