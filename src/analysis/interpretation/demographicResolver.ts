@@ -26,9 +26,7 @@ export function calculateAgeInfo(dateOfBirth: string | null): AgeInfo | null {
   let months = today.getMonth() - dob.getMonth();
   const days = today.getDate() - dob.getDate();
 
-  if (days < 0) {
-    months -= 1;
-  }
+  if (days < 0) months -= 1;
 
   if (months < 0) {
     years -= 1;
@@ -48,10 +46,13 @@ export function resolveDemographicGroup(
 ): DemographicGroup {
   const ageInfo = calculateAgeInfo(medicalProfile?.date_of_birth ?? null);
 
-  // Pediatric groups when DOB is available
   if (ageInfo) {
-    if (ageInfo.monthsTotal >= 6 && ageInfo.monthsTotal <= 59) {
-      return 'enfant_6_59_mois';
+    if (ageInfo.monthsTotal >= 6 && ageInfo.monthsTotal <= 23) {
+      return 'enfant_6_23_mois';
+    }
+
+    if (ageInfo.monthsTotal >= 24 && ageInfo.monthsTotal <= 59) {
+      return 'enfant_24_59_mois';
     }
 
     if (ageInfo.years >= 5 && ageInfo.years <= 11) {
@@ -63,7 +64,6 @@ export function resolveDemographicGroup(
     }
   }
 
-  // Adult pregnant females
   if (
     medicalProfile?.sex === 'female' &&
     medicalProfile?.pregnancy_status === 'pregnant'
@@ -71,18 +71,16 @@ export function resolveDemographicGroup(
     return 'femmeenceinte';
   }
 
-  // Adult males
   if (medicalProfile?.sex === 'male') {
     return 'homme';
   }
 
-  // Adult non‑pregnant females (default)
   return 'femme';
 }
 
 export function getDemographicLabel(group: DemographicGroup): string {
   switch (group) {
-    case 'enfant_6_59_mois':
+    case 'enfant_6_23_mois':
       return 'Child 6–23 months';
     case 'enfant_24_59_mois':
       return 'Child 24–59 months';
@@ -90,8 +88,6 @@ export function getDemographicLabel(group: DemographicGroup): string {
       return 'Child 5–11 years';
     case 'adolescent_12_14_ans':
       return 'Adolescent 12–14 years';
-    case 'enfant_moins_6_mois':
-      return 'Under 6 months (clinical reference required)';
     case 'homme':
       return 'Adult male';
     case 'femme':
