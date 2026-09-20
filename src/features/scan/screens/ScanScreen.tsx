@@ -63,16 +63,6 @@ type CaptureStep =
   | 'processing'
   | 'finalizing';
 
-type SexType = 'male' | 'female';
-type PregnancyStatus = 'not_pregnant' | 'pregnant' | 'unknown';
-type DemographicGroup = 'homme' | 'femme' | 'femmeenceinte';
-
-type UserMedicalProfile = {
-  sex: SexType | null;
-  pregnancy_status: PregnancyStatus | null;
-  date_of_birth: string | null;
-};
-
 type RedPresenceCheckResult = {
   redPixelRatio: number;
   rednessScore: number;
