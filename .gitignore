@@ -73,3 +73,27 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+.env
+android/app/build/
+android/.gradle/
+node_modules/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# VS Code local settings
+.vscode/
+
+# Java / JVM / NDK crash reports
+hs_err_pid*.log
+replay_pid*.log
+
+# Android generated JavaScript bundle and generated image assets
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/node_modules_*.png
+android/app/src/main/res/raw/keep.xml
+
+android/app/src/main/assets/models/
