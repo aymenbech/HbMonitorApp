@@ -47,6 +47,10 @@ export function resolveDemographicGroup(
   const ageInfo = calculateAgeInfo(medicalProfile?.date_of_birth ?? null);
 
   if (ageInfo) {
+    if (ageInfo.monthsTotal < 6) {
+      return 'enfant_moins_6_mois';
+    }
+
     if (ageInfo.monthsTotal >= 6 && ageInfo.monthsTotal <= 23) {
       return 'enfant_6_23_mois';
     }
@@ -80,6 +84,8 @@ export function resolveDemographicGroup(
 
 export function getDemographicLabel(group: DemographicGroup): string {
   switch (group) {
+    case 'enfant_moins_6_mois':
+      return 'Infant under 6 months';
     case 'enfant_6_23_mois':
       return 'Child 6–23 months';
     case 'enfant_24_59_mois':
