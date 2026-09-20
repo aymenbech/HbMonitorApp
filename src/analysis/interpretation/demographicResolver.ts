@@ -83,11 +83,15 @@ export function resolveDemographicGroup(
 export function getDemographicLabel(group: DemographicGroup): string {
   switch (group) {
     case 'enfant_6_59_mois':
-      return 'Child 6–59 months';
+      return 'Child 6–23 months';
+    case 'enfant_24_59_mois':
+      return 'Child 24–59 months';
     case 'enfant_5_11_ans':
       return 'Child 5–11 years';
     case 'adolescent_12_14_ans':
       return 'Adolescent 12–14 years';
+    case 'enfant_moins_6_mois':
+      return 'Under 6 months (clinical reference required)';
     case 'homme':
       return 'Adult male';
     case 'femme':
