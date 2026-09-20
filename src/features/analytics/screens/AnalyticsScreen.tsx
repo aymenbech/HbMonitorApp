@@ -10,6 +10,8 @@ import {MetricCard} from '../../../components/ui/MetricCard';
 import {InsightRow} from '../../../components/ui/InsightRow';
 
 import {useAuth} from '../../../app/AuthContext';
+import {useLanguage} from '../../../app/LanguageContext';
+import {calculateAgeInfo} from '../../../analysis/interpretation/demographicResolver';
 import {supabase} from '../../../lib/supabase';
 import {colors} from '../../../theme/colors';
 import {spacing} from '../../../theme/spacing';
@@ -79,11 +81,11 @@ function getWeekStart(weeksAgo: number): string {
   return d.toISOString();
 }
 
-function getDemographicSummary(profile: MedicalProfile | null): string {
-  if (!profile?.sex) return 'Not set';
-  if (profile.sex === 'male') return 'Adult male';
-  if (profile.pregnancy_status === 'pregnant') return 'Pregnant female';
-  return 'Adult female';
+function getDemographicSummary(profile: MedicalProfile | null, t: (section: any, key: any) => string): string {
+  if (!profile?.sex) return t('profile', 'unknown');
+  if (profile.sex === 'male') return t('profile', 'male');
+  if (profile.pregnancy_status === 'pregnant') return `${t('profile', 'pregnant')} ${t('profile', 'female')}`;
+  return t('profile', 'female');
 }
 
 function getMedicalProfileStatus(profile: MedicalProfile | null): {
@@ -134,7 +136,7 @@ function TrendBars({results}: {results: HbResult[]}) {
   if (results.length === 0) {
     return (
       <View style={styles.chartEmpty}>
-        <Text style={styles.chartEmptyText}>No scan data yet</Text>
+        <Text style={styles.chartEmptyText}>{t('home', 'noResults')}</Text>
       </View>
     );
   }
@@ -338,6 +340,8 @@ export function AnalyticsScreen() {
   }, [fetchAnalytics]);
 
   // ✅ استدعاء الـ useMemo قبل أي return
+  const ageInfo = useMemo(() => calculateAgeInfo(data.medicalProfile?.date_of_birth ?? null), [data.medicalProfile]);
+
   const demographicSummary = useMemo(
     () => getDemographicSummary(data.medicalProfile),
     [data.medicalProfile],
@@ -376,8 +380,8 @@ export function AnalyticsScreen() {
   return (
     <Screen scrollable refreshing={isRefreshing} onRefresh={onRefresh}>
       <SectionHeader
-        title="Analytics"
-        subtitle="Track hemoglobin changes and scan quality over time"
+        title={t('analytics', 'title')}
+        subtitle={t('analytics', 'history')}
       />
 
       {error ? (
@@ -389,13 +393,13 @@ export function AnalyticsScreen() {
 
       <View style={styles.metricRow}>
         <MetricCard
-          label="Weekly Avg"
+          label={t('analytics', 'average')}
           value={formatHb(weeklyAvg)}
-          helper="g/dL this week"
+          helper={t('result', 'unit')}
           accentColor="#22C55E"
         />
         <MetricCard
-          label="Total Scans"
+          label={t('analytics', 'totalScans')}
           value={`${totalScans}`}
           helper="all recorded sessions"
           accentColor={colors.primary}
@@ -404,7 +408,7 @@ export function AnalyticsScreen() {
 
       <View style={styles.metricRow}>
         <MetricCard
-          label="Avg Quality"
+          label={t('scan', 'scanQuality')}
           value={
             avgQualityScore !== null ? `${avgQualityScore}%` : '—'
           }
@@ -412,27 +416,27 @@ export function AnalyticsScreen() {
           accentColor="#F59E0B"
         />
         <MetricCard
-          label="Avg Confidence"
+          label={t('result', 'confidence')}
           value={
             avgConfidenceScore !== null ? `${avgConfidenceScore}%` : '—'
           }
-          helper="model output confidence"
+          helper={t('result', 'confidence')}
           accentColor="#22C55E"
         />
       </View>
 
       <AppCard style={styles.chartCard}>
-        <Text style={styles.cardTitle}>Hb Trend</Text>
+        <Text style={styles.cardTitle}>{t('analytics', 'history')}</Text>
         <TrendBars results={recentResults} />
         <Text style={styles.chartNote}>
           {recentResults.length > 0
-            ? `Showing last ${recentResults.length} recorded readings. Color indicates severity.`
-            : 'Complete a scan to see your trend chart here.'}
+            ? `${recentResults.length} — ${t('analytics', 'history')}`
+            : t('home', 'noResults')}
         </Text>
       </AppCard>
 
       <AppCard style={styles.insightCard}>
-        <Text style={styles.cardTitle}>Weekly Insights</Text>
+        <Text style={styles.cardTitle}>{t('analytics', 'average')}</Text>
 
         <InsightRow
           label="Highest reading"
@@ -470,11 +474,15 @@ export function AnalyticsScreen() {
       </AppCard>
 
       <AppCard style={styles.insightCard}>
-        <Text style={styles.cardTitle}>Profile Context</Text>
+        <Text style={styles.cardTitle}>{t('profile', 'medicalProfile')}</Text>
 
         <InsightRow
-          label="Demographic profile"
+          label={t('child', 'ageGroup')}
           value={demographicSummary}
+        />
+        <InsightRow
+          label={t('child', 'age')}
+          value={ageInfo ? `${ageInfo.years} ${t('child', 'years')} (${ageInfo.monthsTotal} ${t('child', 'months')})` : t('profile', 'unknown')}
         />
 
         <InsightRow
@@ -491,7 +499,7 @@ export function AnalyticsScreen() {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.cardTitle}>Week Comparison</Text>
+        <Text style={styles.cardTitle}>{t('analytics', 'history')}</Text>
         <Text style={styles.paragraph}>{trend}</Text>
 
         {totalScans === 0 && (
