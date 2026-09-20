@@ -118,6 +118,8 @@ export function ProfileScreen() {
   const [editedName, setEditedName] = useState('');
   const [editedDob, setEditedDob] = useState('');
   const [totalScans, setTotalScans] = useState(0);
+  const [patientMode, setPatientMode] = useState<'adult' | 'child'>('adult');
+  const [childName, setChildName] = useState('');
 
   useEffect(() => {
     AsyncStorage.multiGet(['@hbmonitor_patient_mode', '@hbmonitor_child_name']).then(values => {
