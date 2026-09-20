@@ -26,6 +26,7 @@ import {spacing} from '../../../theme/spacing';
 import {typography} from '../../../theme/typography';
 
 import {useAuth} from '../../../app/AuthContext';
+import {useLanguage} from '../../../app/LanguageContext';
 import {supabase} from '../../../lib/supabase';
 
 import type {
@@ -189,6 +190,7 @@ function checkRedPresenceInCenterROI(
 
 export function ScanScreen({navigation}: Props) {
   const {user} = useAuth();
+  const {t} = useLanguage();
 
   const {hasPermission, requestPermission} = useCameraPermission();
   const device = useCameraDevice('back');
@@ -443,14 +445,14 @@ export function ScanScreen({navigation}: Props) {
             <View style={styles.cameraFallback}>
               <Text style={styles.fallbackTitle}>
                 {hasPermission
-                  ? 'Camera unavailable'
-                  : 'Camera permission required'}
+                  ? t('scan', 'cameraUnavailable')
+                  : t('scan', 'cameraPermissionRequired')}
               </Text>
 
               <Text style={styles.fallbackText}>
                 {hasPermission
-                  ? 'No compatible back camera was found on this device.'
-                  : 'Please allow camera access to start the guided capture preview.'}
+                  ? t('scan', 'cameraUnavailable')
+                  : t('scan', 'cameraWait')}
               </Text>
             </View>
           )}
@@ -461,13 +463,13 @@ export function ScanScreen({navigation}: Props) {
       </AppCard>
 
       {!hasPermission ? (
-        <PrimaryButton title="Grant Camera Access" onPress={requestPermission} />
+        <PrimaryButton title={t('scan', 'cameraAccess')} onPress={requestPermission} />
       ) : null}
 
       <View style={styles.qualityRow}>
-        <QualityChip label="Light" value="Good" tone="good" />
-        <QualityChip label="Focus" value="Sharp" tone="good" />
-        <QualityChip label="Stability" value="Stable" tone="good" />
+        <QualityChip label={t('scan', 'scanQuality')} value={t('scan', 'good')} tone="good" />
+        <QualityChip label={t('scan', 'scanQuality')} value={t('scan', 'excellent')} tone="good" />
+        <QualityChip label={t('scan', 'scanQuality')} value={t('scan', 'good')} tone="good" />
       </View>
 
       <ScanQualityBar score={scanQualityScore} />
@@ -494,7 +496,7 @@ export function ScanScreen({navigation}: Props) {
       ) : null}
 
       {isLoadingMedicalProfile ? (
-        <Text style={styles.debugText}>Loading medical profile...</Text>
+        <Text style={styles.debugText}>{t('scan', 'loadingProfile')}</Text>
       ) : null}
 
       {debugMessage ? <Text style={styles.debugText}>{debugMessage}</Text> : null}
