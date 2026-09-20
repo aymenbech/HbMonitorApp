@@ -65,13 +65,7 @@ export const en = {
     loadingProfile: 'Loading Profile...',
     captureAnalyze: 'Capture & Analyze',
     localProcessing: 'Image analysis is performed locally on the device without requiring an internet connection.',
-    cameraAccess: 'Grant Camera Access',
-    cameraUnavailable: 'Camera unavailable',
-    cameraPermissionRequired: 'Camera permission required',
-    cameraWait: 'Please wait for the camera to initialize.',
-    profileLoading: 'Profile loading',
-    loadingProfile: 'Loading Profile...',
-    captureAnalyze: 'Capture & Analyze',
+
   },
   result: {
     title: 'Scan Result',
