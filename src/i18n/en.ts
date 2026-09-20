@@ -65,6 +65,13 @@ export const en = {
     loadingProfile: 'Loading Profile...',
     captureAnalyze: 'Capture & Analyze',
     localProcessing: 'Image analysis is performed locally on the device without requiring an internet connection.',
+    cameraAccess: 'Grant Camera Access',
+    cameraUnavailable: 'Camera unavailable',
+    cameraPermissionRequired: 'Camera permission required',
+    cameraWait: 'Please wait for the camera to initialize.',
+    profileLoading: 'Profile loading',
+    loadingProfile: 'Loading Profile...',
+    captureAnalyze: 'Capture & Analyze',
   },
   result: {
     title: 'Scan Result',
@@ -108,6 +115,10 @@ export const en = {
     sixMonthsToFourYears: '6 months to 4 years',
     fiveToEleven: '5 to 11 years',
     twelveToFourteen: '12 to 14 years',
+    patientMode: 'Patient type',
+    currentPatient: 'Current patient',
+    pediatricNote: 'For children, the hemoglobin threshold is selected from the child’s exact age group.',
+    unsupportedInfant: 'Children under 6 months are not supported for this screening interpretation.'
   },
   analytics: {
     title: 'Analytics',
