@@ -23,6 +23,7 @@ import {colors} from '../../../theme/colors';
 import {spacing} from '../../../theme/spacing';
 
 import {useAuth} from '../../../app/AuthContext';
+import {useLanguage} from '../../../app/LanguageContext';
 import {supabase} from '../../../lib/supabase';
 import type {MainTabParamList, ResultSeverity} from '../../../navigation/types';
 
@@ -51,9 +52,9 @@ type HomeData = {
   medicalProfile: MedicalProfile | null;
 };
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale = 'en-US'): string {
   try {
-    return new Date(iso).toLocaleDateString('en-US', {
+    return new Date(iso).toLocaleDateString(locale, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -117,6 +118,8 @@ type Props = BottomTabScreenProps<MainTabParamList, 'Home'>;
 
 export function HomeScreen({navigation}: Props) {
   const {user} = useAuth();
+  const {language, t} = useLanguage();
+  const locale = language === 'ar' ? 'ar-DZ' : 'en-US';
 
   const [data, setData] = useState<HomeData>({
     fullName: null,
@@ -255,14 +258,14 @@ export function HomeScreen({navigation}: Props) {
 
         {error ? (
           <AppCard style={styles.alertCard}>
-            <Text style={styles.alertTitle}>⚠️ Data Load Error</Text>
+            <Text style={styles.alertTitle}>⚠️ {t('common', 'error')}</Text>
             <Text style={styles.alertText}>{error}</Text>
           </AppCard>
         ) : null}
 
         {!medicalStatus.isComplete ? (
           <AppCard style={styles.alertCard}>
-            <Text style={styles.alertTitle}>Complete your health profile</Text>
+            <Text style={styles.alertTitle}>{t('profile', 'medicalProfile')}</Text>
             <Text style={styles.alertText}>{medicalStatus.message}</Text>
             <View style={styles.alertActions}>
               <QuickActionCard
@@ -276,34 +279,34 @@ export function HomeScreen({navigation}: Props) {
 
         <View style={styles.metricRow}>
           <MetricCard
-            label="Latest Hb"
+            label={t('result', 'hemoglobin')}
             value={hbDisplay}
-            helper="g/dL current reading"
+            helper={t('result', 'unit')}
             accentColor={colors.primary}
           />
           <MetricCard
-            label="Confidence"
+            label={t('result', 'confidence')}
             value={confidenceDisplay}
-            helper="model confidence"
+            helper={t('result', 'confidence')}
             accentColor="#22C55E"
           />
         </View>
 
         <AppCard style={styles.highlightCard}>
           <StatusBadge status={severity} />
-          <Text style={styles.highlightLabel}>Latest Reading</Text>
+          <Text style={styles.highlightLabel}>{t('home', 'latestResult')}</Text>
           <Text style={styles.highlightValue}>
-            {latestResult ? `${hbDisplay} g/dL` : 'No scans yet'}
+            {latestResult ? `${hbDisplay} ${t('result', 'unit')}` : t('home', 'noResults')}
           </Text>
           <Text style={styles.highlightMeta}>
             {latestResult
               ? latestResult.result_label_en ??
-                `Recorded on ${formatDate(latestResult.result_at)}`
-              : 'Start your first scan to see results here.'}
+                `Recorded on ${formatDate(latestResult.result_at, locale)}`
+              : t('home', 'startScan')}
           </Text>
         </AppCard>
 
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle}>{t('home', 'startScan')}</Text>
         <View style={styles.quickActions}>
           <QuickActionCard
             title="Start New Scan"
@@ -323,45 +326,45 @@ export function HomeScreen({navigation}: Props) {
         </View>
 
         <AppCard>
-          <Text style={styles.sectionTitle}>Summary</Text>
+          <Text style={styles.sectionTitle}>{t('analytics', 'title')}</Text>
 
           <InsightRow
-            label="Reading status"
-            value={latestResult?.anemia_severity ?? 'No data'}
+            label={t('result', 'status')}
+            value={latestResult?.anemia_severity ?? t('home', 'noResults')}
             tone={latestResult?.anemia_severity === 'normal' ? 'good' : 'neutral'}
           />
 
           <InsightRow
-            label="Demographic profile"
+            label={t('profile', 'patientType')}
             value={demographicSummary}
           />
 
           <InsightRow
-            label="Profile status"
-            value={medicalStatus.isComplete ? 'Complete' : 'Incomplete'}
+            label={t('profile', 'medicalProfile')}
+            value={medicalStatus.isComplete ? t('common', 'success') : t('common', 'error')}
             tone={medicalStatus.isComplete ? 'good' : 'neutral'}
           />
 
           <InsightRow
-            label="Total scans"
+            label={t('analytics', 'totalScans')}
             value={
               totalScans > 0
-                ? `${totalScans} session${totalScans > 1 ? 's' : ''}`
-                : 'None yet'
+                ? `${totalScans}`
+                : t('home', 'noResults')
             }
           />
 
           {latestResult?.recommendation_en ? (
             <InsightRow
-              label="Recommendation"
+              label={t('result', 'status')}
               value={latestResult.recommendation_en}
             />
           ) : null}
 
           {latestResult ? (
             <InsightRow
-              label="Last scan date"
-              value={formatDate(latestResult.result_at)}
+              label={t('profile', 'dateOfBirth')}
+              value={formatDate(latestResult.result_at, locale)}
             />
           ) : null}
         </AppCard>
