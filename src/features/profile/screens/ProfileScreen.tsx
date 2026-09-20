@@ -17,6 +17,7 @@ import {AppCard} from '../../../components/ui/AppCard';
 import {PrimaryButton} from '../../../components/ui/PrimaryButton';
 
 import {useAuth} from '../../../app/AuthContext';
+import {useLanguage} from '../../../app/LanguageContext';
 import {supabase} from '../../../lib/supabase';
 import {colors} from '../../../theme/colors';
 import {spacing} from '../../../theme/spacing';
@@ -329,8 +330,8 @@ export function ProfileScreen() {
   return (
     <Screen scrollable refreshing={isRefreshing} onRefresh={onRefresh}>
       <SectionHeader
-        title="Profile"
-        subtitle="Manage your health profile and account settings"
+        title={t('profile', 'title')}
+        subtitle={t('profile', 'medicalProfile')}
       />
 
       <AppCard style={styles.avatarCard}>
@@ -348,7 +349,7 @@ export function ProfileScreen() {
               style={styles.nameInput}
               autoFocus
               autoCapitalize="words"
-              placeholder="Enter full name"
+              placeholder={t('profile', 'title')}
               placeholderTextColor={colors.textSecondary}
             />
             <TouchableOpacity
@@ -356,19 +357,19 @@ export function ProfileScreen() {
               onPress={handleSaveName}
               disabled={isSavingName}>
               <Text style={styles.saveBtnText}>
-                {isSavingName ? '...' : 'Save'}
+                {isSavingName ? '...' : t('common', 'save')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setIsEditingName(false)}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t('common', 'cancel')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity onPress={() => setIsEditingName(true)}>
             <Text style={styles.profileName}>
-              {profile.fullName || 'Add your name'}
+              {profile.fullName || t('profile', 'title')}
             </Text>
-            <Text style={styles.editHint}>Tap to edit name</Text>
+            <Text style={styles.editHint}>{t('profile', 'title')}</Text>
           </TouchableOpacity>
         )}
 
@@ -378,27 +379,27 @@ export function ProfileScreen() {
       <AppCard style={styles.statsCard}>
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{totalScans}</Text>
-          <Text style={styles.statLabel}>Total Scans</Text>
+          <Text style={styles.statLabel}>{t('analytics', 'totalScans')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{ageLabel}</Text>
-          <Text style={styles.statLabel}>Age</Text>
+          <Text style={styles.statLabel}>{t('child', 'age')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{formatSex(medical.sex)}</Text>
-          <Text style={styles.statLabel}>Sex</Text>
+          <Text style={styles.statValue}>{formatSex(medical.sex, t)}</Text>
+          <Text style={styles.statLabel}>{t('profile', 'sex')}</Text>
         </View>
       </AppCard>
 
       <AppCard style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
+        <Text style={styles.sectionTitle}>{t('profile', 'title')}</Text>
         <SectionDivider />
-        <InfoRow label="Full name" value={profile.fullName} />
-        <InfoRow label="Email" value={profile.email} />
+        <InfoRow label={t('profile', 'title')} value={profile.fullName} />
+        <InfoRow label={t('auth', 'email')} value={profile.email} />
         <InfoRow
-          label="Date of birth"
+          label={t('profile', 'dateOfBirth')}
           value={formatDate(medical.dateOfBirth || null)}
         />
 
@@ -419,17 +420,17 @@ export function ProfileScreen() {
             onPress={handleSaveDateOfBirth}
             disabled={isSavingMedical}>
             <Text style={styles.saveBtnText}>
-              {isSavingMedical ? '...' : 'Save'}
+              {isSavingMedical ? '...' : t('common', 'save')}
             </Text>
           </TouchableOpacity>
         </View>
       </AppCard>
 
       <AppCard style={styles.section}>
-        <Text style={styles.sectionTitle}>Health Profile</Text>
+        <Text style={styles.sectionTitle}>{t('profile', 'medicalProfile')}</Text>
         <SectionDivider />
 
-        <Text style={styles.fieldLabel}>Biological Sex</Text>
+        <Text style={styles.fieldLabel}>{t('profile', 'sex')}</Text>
         <View style={styles.sexRow}>
           {(['male', 'female'] as SexType[]).map(s => (
             <TouchableOpacity
@@ -445,7 +446,7 @@ export function ProfileScreen() {
                   styles.sexBtnText,
                   medical.sex === s && styles.sexBtnTextActive,
                 ]}>
-                {s === 'male' ? 'Male' : 'Female'}
+                {s === 'male' ? t('profile', 'male') : t('profile', 'female')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -454,7 +455,7 @@ export function ProfileScreen() {
         {medical.sex === 'female' ? (
           <>
             <Text style={[styles.fieldLabel, {marginTop: spacing.md}]}>
-              Pregnancy Status
+              {t('profile', 'pregnancy')}
             </Text>
             <View style={styles.sexRow}>
               {(
@@ -472,7 +473,7 @@ export function ProfileScreen() {
                         styles.sexBtnText,
                         active && styles.sexBtnTextActive,
                       ]}>
-                      {formatPregnancyStatus(status)}
+                      {formatPregnancyStatus(status, t)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -481,23 +482,23 @@ export function ProfileScreen() {
           </>
         ) : null}
 
-        <InfoRow label="Sex" value={formatSex(medical.sex)} />
+        <InfoRow label={t('profile', 'sex')} value={formatSex(medical.sex, t)} />
         <InfoRow
-          label="Pregnancy"
+          label={t('profile', 'pregnancy')}
           value={
             medical.sex === 'female'
-              ? formatPregnancyStatus(medical.pregnancyStatus)
-              : 'Not applicable'
+              ? formatPregnancyStatus(medical.pregnancyStatus, t)
+              : t('profile', 'unknown')
           }
         />
       </AppCard>
 
       <AppCard style={styles.section}>
-        <Text style={styles.sectionTitle}>Derived Demographic Group</Text>
+        <Text style={styles.sectionTitle}>{t('child', 'ageGroup')}</Text>
         <SectionDivider />
-        <InfoRow label="Applied group" value={demographicLabel} />
+        <InfoRow label={t('child', 'ageGroup')} value={demographicLabel} />
         <InfoRow
-          label="Age detail"
+          label={t('child', 'age')}
           value={
             ageInfo
               ? `${ageInfo.years} years (${ageInfo.monthsTotal} months)`
@@ -510,7 +511,7 @@ export function ProfileScreen() {
       </AppCard>
 
       <AppCard style={styles.section}>
-        <Text style={styles.sectionTitle}>Medical Disclaimer</Text>
+        <Text style={styles.sectionTitle}>{t('result', 'disclaimer')}</Text>
         <SectionDivider />
         <Text style={styles.disclaimerText}>
           This application provides hemoglobin estimates for informational
@@ -520,7 +521,28 @@ export function ProfileScreen() {
         </Text>
       </AppCard>
 
-      <PrimaryButton title="Sign Out" onPress={handleLogout} />
+      <AppCard style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('settings', 'language')}</Text>
+        <SectionDivider />
+        <View style={styles.sexRow}>
+          <TouchableOpacity
+            style={[styles.sexBtn, language === 'ar' && styles.sexBtnActive]}
+            onPress={() => handleLanguageChange('ar')}>
+            <Text style={[styles.sexBtnText, language === 'ar' && styles.sexBtnTextActive]}>
+              {t('settings', 'arabic')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sexBtn, language === 'en' && styles.sexBtnActive]}
+            onPress={() => handleLanguageChange('en')}>
+            <Text style={[styles.sexBtnText, language === 'en' && styles.sexBtnTextActive]}>
+              {t('settings', 'english')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </AppCard>
+
+      <PrimaryButton title={t('auth', 'logout')} onPress={handleLogout} />
     </Screen>
   );
 }
