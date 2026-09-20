@@ -45,11 +45,11 @@ type MedicalData = {
   pregnancyStatus: PregnancyStatus;
 };
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null, locale = 'en-US'): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -252,7 +252,7 @@ export function ProfileScreen() {
     setIsSavingName(false);
 
     if (error) {
-      Alert.alert('Error', 'Could not update name. Please try again.');
+      Alert.alert(t('common', 'error'), t('common', 'error'));
       return;
     }
 
@@ -292,7 +292,7 @@ export function ProfileScreen() {
     setIsSavingMedical(false);
 
     if (error) {
-      Alert.alert('Error', 'Could not save medical profile.');
+      Alert.alert(t('common', 'error'), t('common', 'error'));
       await fetchProfile();
     }
   };
@@ -459,11 +459,11 @@ export function ProfileScreen() {
         <InfoRow label={t('auth', 'email')} value={profile.email} />
         <InfoRow
           label={t('profile', 'dateOfBirth')}
-          value={formatDate(medical.dateOfBirth || null)}
+          value={formatDate(medical.dateOfBirth || null, language === 'ar' ? 'ar-DZ' : 'en-US')}
         />
 
         <Text style={[styles.fieldLabel, {marginTop: spacing.md}]}>
-          Date of Birth
+          {t('profile', 'dateOfBirth')}
         </Text>
         <View style={styles.inlineInputRow}>
           <TextInput
@@ -560,12 +560,12 @@ export function ProfileScreen() {
           label={t('child', 'age')}
           value={
             ageInfo
-              ? `${ageInfo.years} years (${ageInfo.monthsTotal} months)`
-              : 'Add date of birth'
+              ? `${ageInfo.years} ${t('child', 'years')} (${ageInfo.monthsTotal} ${t('child', 'months')})`
+              : t('profile', 'unknown')
           }
         />
         <Text style={styles.disclaimerText}>
-          This derived group is used to apply age- and status-specific hemoglobin interpretation thresholds.
+          {t('child', 'pediatricNote')}
         </Text>
       </AppCard>
 
