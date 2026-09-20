@@ -343,7 +343,7 @@ export function AnalyticsScreen() {
   const ageInfo = useMemo(() => calculateAgeInfo(data.medicalProfile?.date_of_birth ?? null), [data.medicalProfile]);
 
   const demographicSummary = useMemo(
-    () => getDemographicSummary(data.medicalProfile),
+    () => getDemographicSummary(data.medicalProfile, t),
     [data.medicalProfile],
   );
 
@@ -401,7 +401,7 @@ export function AnalyticsScreen() {
         <MetricCard
           label={t('analytics', 'totalScans')}
           value={`${totalScans}`}
-          helper="all recorded sessions"
+          helper={t('analytics', 'history')}
           accentColor={colors.primary}
         />
       </View>
@@ -439,19 +439,19 @@ export function AnalyticsScreen() {
         <Text style={styles.cardTitle}>{t('analytics', 'average')}</Text>
 
         <InsightRow
-          label="Highest reading"
+          label={t('result', 'hemoglobin')}
           value={highestHb !== null ? `${formatHb(highestHb)} g/dL` : 'No data'}
           tone={highestHb !== null ? 'good' : 'neutral'}
         />
 
         <InsightRow
-          label="Lowest reading"
+          label={t('result', 'hemoglobin')}
           value={lowestHb !== null ? `${formatHb(lowestHb)} g/dL` : 'No data'}
           tone={lowestHb !== null && lowestHb < 11 ? 'warning' : 'good'}
         />
 
         <InsightRow
-          label="Image quality avg"
+          label={t('scan', 'scanQuality')}
           value={
             avgQualityScore !== null
               ? `${getQualityLabel(avgQualityScore)} (${avgQualityScore}%)`
@@ -461,13 +461,13 @@ export function AnalyticsScreen() {
         />
 
         <InsightRow
-          label="Weekly average"
+          label={t('analytics', 'average')}
           value={weeklyAvg !== null ? `${formatHb(weeklyAvg)} g/dL` : 'No data'}
           tone={weeklyAvg !== null && weeklyAvg >= 11 ? 'good' : 'warning'}
         />
 
         <InsightRow
-          label="Latest severity"
+          label={t('result', 'status')}
           value={latestSeverity ?? 'No data'}
           tone={getSeverityTone(latestSeverity)}
         />
