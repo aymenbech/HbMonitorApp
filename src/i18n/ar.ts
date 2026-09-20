@@ -112,6 +112,10 @@ export const ar = {
     sixMonthsToFourYears: 'من 6 أشهر إلى 4 سنوات',
     fiveToEleven: 'من 5 إلى 11 سنة',
     twelveToFourteen: 'من 12 إلى 14 سنة',
+    patientMode: 'نوع المريض',
+    currentPatient: 'المريض الحالي',
+    pediatricNote: 'بالنسبة للأطفال، يتم اختيار حدود الهيموغلوبين حسب الفئة العمرية الدقيقة للطفل.',
+    unsupportedInfant: 'الأطفال أقل من 6 أشهر غير مدعومين في هذا التفسير الخاص بالفحص.'
   },
   analytics: {
     title: 'التحليلات',
