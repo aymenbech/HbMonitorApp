@@ -27,7 +27,7 @@ export function categorizeHb(
     return 'severe';
   }
 
-  // Children 5–11 years
+  // Children 5–11 years (WHO 2024)
   if (group === 'enfant_5_11_ans') {
     if (hb >= 11.5) return 'normal';
     if (hb >= 11) return 'mild';
@@ -35,7 +35,7 @@ export function categorizeHb(
     return 'severe';
   }
 
-  // Adolescents 12–14 years
+  // Adolescents 12–14 years (WHO 2024)
   if (group === 'adolescent_12_14_ans') {
     if (hb >= 12) return 'normal';
     if (hb >= 11) return 'mild';
@@ -43,7 +43,7 @@ export function categorizeHb(
     return 'severe';
   }
 
-  // Adult males
+  // Adult males (WHO 2024)
   if (group === 'homme') {
     if (hb >= 13) return 'normal';
     if (hb >= 11) return 'mild';
@@ -59,7 +59,7 @@ export function categorizeHb(
     return 'severe';
   }
 
-  // Adult non‑pregnant females (default)
+  // Adult non‑pregnant females (WHO 2024)
   if (hb >= 12) return 'normal';
   if (hb >= 11) return 'mild';
   if (hb >= 8) return 'moderate';
