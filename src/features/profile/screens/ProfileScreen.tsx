@@ -66,19 +66,19 @@ function calculateAgeLabel(dob: string | null): string {
   return `${ageInfo.years} years old`;
 }
 
-function formatSex(value: SexType | null): string {
+function formatSex(value: SexType | null, t: any): string {
   if (!value) return '—';
-  return value === 'male' ? 'Male' : 'Female';
+  return value === 'male' ? t('profile', 'male') : t('profile', 'female');
 }
 
-function formatPregnancyStatus(value: PregnancyStatus): string {
+function formatPregnancyStatus(value: PregnancyStatus, t: any): string {
   switch (value) {
     case 'pregnant':
-      return 'Pregnant';
+      return t('profile', 'pregnant');
     case 'unknown':
-      return 'Unknown';
+      return t('profile', 'unknown');
     default:
-      return 'Not pregnant';
+      return t('profile', 'notPregnant');
   }
 }
 
