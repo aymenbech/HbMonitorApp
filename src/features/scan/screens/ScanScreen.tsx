@@ -44,6 +44,12 @@ import {normalizeColorFeatures} from '../../../analysis/color/colorNormalization
 import {estimateHbFromFeatures} from '../../../analysis/calibration/calibrationEngine';
 import {estimateConfidence} from '../../../analysis/calibration/confidenceEngine';
 import {categorizeHb} from '../../../analysis/interpretation/hbInterpretation';
+import {
+  calculateAgeInfo,
+  resolveDemographicGroup,
+  getDemographicLabel,
+  type UserMedicalProfile,
+} from '../../../analysis/interpretation/demographicResolver';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Scan'>,
@@ -74,52 +80,13 @@ type RedPresenceCheckResult = {
   roiPixelCount: number;
 };
 
-function stepLabel(step: CaptureStep): string {
+function stepLabel(step: CaptureStep, t: (section: any, key: any) => string): string {
   switch (step) {
-    case 'capturing':
-      return 'Capturing image...';
-    case 'analyzing':
-      return 'Checking image quality...';
-    case 'processing':
-      return 'Processing color data...';
-    case 'finalizing':
-      return 'Preparing result...';
-    default:
-      return '';
-  }
-}
-
-function toDebugText(lines: Array<string | null | undefined>) {
-  return lines.filter(Boolean).join('\n');
-}
-
-function resolveDemographicGroup(
-  medicalProfile: UserMedicalProfile | null,
-): DemographicGroup {
-  if (medicalProfile?.sex === 'male') {
-    return 'homme';
-  }
-
-  if (
-    medicalProfile?.sex === 'female' &&
-    medicalProfile?.pregnancy_status === 'pregnant'
-  ) {
-    return 'femmeenceinte';
-  }
-
-  return 'femme';
-}
-
-function getDemographicLabel(group: DemographicGroup): string {
-  switch (group) {
-    case 'homme':
-      return 'Adult male';
-    case 'femme':
-      return 'Adult female';
-    case 'femmeenceinte':
-      return 'Pregnant female';
-    default:
-      return 'Unknown';
+    case 'capturing': return t('scan', 'capture');
+    case 'analyzing': return t('scan', 'checkingQuality');
+    case 'processing': return t('scan', 'processingColor');
+    case 'finalizing': return t('scan', 'preparingResult');
+    default: return '';
   }
 }
 
@@ -477,7 +444,7 @@ export function ScanScreen({navigation}: Props) {
       <PrimaryButton
         title={
           isCapturing
-            ? stepLabel(captureStep)
+            ? stepLabel(captureStep, t)
             : isLoadingMedicalProfile
             ? 'Loading Profile...'
             : 'Capture & Analyze'
