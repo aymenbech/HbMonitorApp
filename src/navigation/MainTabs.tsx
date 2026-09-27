@@ -27,6 +27,8 @@ function TabLabel({label, focused}: {label: string; focused: boolean}) {
 }
 
 export function MainTabs() {
+  const {t} = useLanguage();
+
   return (
     <Tab.Navigator
       screenOptions={{
