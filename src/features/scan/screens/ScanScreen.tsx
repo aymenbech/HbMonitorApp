@@ -37,7 +37,6 @@ import type {
 
 import {analyzeImageQuality} from '../utils/imageQuality';
 import {getRgbaFromImage} from '../../../ml/HbImageProcessor';
-
 import {extractGuideRoi} from '../../../analysis/roi/extractGuideRoi';
 import {computeColorFeatures} from '../../../analysis/color/colorFeatures';
 import {normalizeColorFeatures} from '../../../analysis/color/colorNormalization';
@@ -45,7 +44,6 @@ import {estimateHbFromFeatures} from '../../../analysis/calibration/calibrationE
 import {estimateConfidence} from '../../../analysis/calibration/confidenceEngine';
 import {categorizeHb} from '../../../analysis/interpretation/hbInterpretation';
 import {
-  calculateAgeInfo,
   resolveDemographicGroup,
   getDemographicLabel,
   type UserMedicalProfile,
@@ -70,13 +68,23 @@ type RedPresenceCheckResult = {
   roiPixelCount: number;
 };
 
-function stepLabel(step: CaptureStep, t: (section: any, key: any) => string): string {
+const toDebugText = (lines: string[]): string => lines.join('\n');
+
+function stepLabel(
+  step: CaptureStep,
+  t: (section: string, key: string) => string,
+): string {
   switch (step) {
-    case 'capturing': return t('scan', 'capture');
-    case 'analyzing': return t('scan', 'checkingQuality');
-    case 'processing': return t('scan', 'processingColor');
-    case 'finalizing': return t('scan', 'preparingResult');
-    default: return '';
+    case 'capturing':
+      return t('scan', 'capture');
+    case 'analyzing':
+      return t('scan', 'checkingQuality');
+    case 'processing':
+      return t('scan', 'processingColor');
+    case 'finalizing':
+      return t('scan', 'preparingResult');
+    default:
+      return '';
   }
 }
 
@@ -100,7 +108,6 @@ function checkRedPresenceInCenterROI(
 ): RedPresenceCheckResult {
   const roiWidth = Math.floor(width * 0.5);
   const roiHeight = Math.floor(height * 0.5);
-
   const startX = Math.floor((width - roiWidth) / 2);
   const endX = startX + roiWidth;
   const startY = Math.floor((height - roiHeight) / 2);
@@ -113,11 +120,9 @@ function checkRedPresenceInCenterROI(
   for (let y = startY; y < endY; y += 1) {
     for (let x = startX; x < endX; x += 1) {
       const idx = (y * width + x) * 4;
-
       const r = rgba[idx];
       const g = rgba[idx + 1];
       const b = rgba[idx + 2];
-
       roiPixelCount += 1;
 
       const maxGB = Math.max(g, b);
@@ -135,12 +140,10 @@ function checkRedPresenceInCenterROI(
   const rednessScore =
     redLikePixels > 0 ? rednessAccumulator / redLikePixels : 0;
 
-  const passes = redPixelRatio >= 0.18 && rednessScore >= 24;
-
   return {
     redPixelRatio,
     rednessScore,
-    passes,
+    passes: redPixelRatio >= 0.18 && rednessScore >= 24,
     roiPixelCount,
   };
 }
@@ -148,7 +151,6 @@ function checkRedPresenceInCenterROI(
 export function ScanScreen({navigation}: Props) {
   const {user} = useAuth();
   const {t} = useLanguage();
-
   const {hasPermission, requestPermission} = useCameraPermission();
   const device = useCameraDevice('back');
   const photoOutput = usePhotoOutput();
@@ -164,14 +166,16 @@ export function ScanScreen({navigation}: Props) {
 
   useEffect(() => {
     if (!hasPermission) {
-      requestPermission();
+      requestPermission().catch(error => {
+        console.warn('Camera permission request failed:', error);
+      });
     }
   }, [hasPermission, requestPermission]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    if (hasPermission && device) {
+    if (hasPermission && device && photoOutput) {
       setCameraActive(false);
       timer = setTimeout(() => setCameraActive(true), 400);
     } else {
@@ -183,40 +187,60 @@ export function ScanScreen({navigation}: Props) {
         clearTimeout(timer);
       }
     };
-  }, [hasPermission, device]);
+  }, [hasPermission, device, photoOutput]);
 
   useEffect(() => {
+    let mounted = true;
+
     async function fetchMedicalProfile() {
       if (!user?.id) {
-        setMedicalProfile(null);
-        setIsLoadingMedicalProfile(false);
+        if (mounted) {
+          setMedicalProfile(null);
+          setIsLoadingMedicalProfile(false);
+        }
         return;
       }
 
       setIsLoadingMedicalProfile(true);
 
-      const {data, error} = await supabase
-        .from('patient_medical_profiles')
-        .select('sex, pregnancy_status, date_of_birth')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      try {
+        const {data, error} = await supabase
+          .from('patient_medical_profiles')
+          .select('sex, pregnancy_status, date_of_birth')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (!error) {
-        setMedicalProfile(data ?? null);
+        if (mounted) {
+          if (error) {
+            console.warn('Medical profile load failed:', error.message);
+            setMedicalProfile(null);
+          } else {
+            setMedicalProfile(data ?? null);
+          }
+        }
+      } catch (error) {
+        console.warn('Medical profile exception:', error);
+        if (mounted) {
+          setMedicalProfile(null);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoadingMedicalProfile(false);
+        }
       }
-
-      setIsLoadingMedicalProfile(false);
     }
 
     fetchMedicalProfile();
+    return () => {
+      mounted = false;
+    };
   }, [user?.id]);
 
   useEffect(() => {
     const demographicGroup = resolveDemographicGroup(medicalProfile);
-
     setDebugMessage(
       toDebugText([
-        `Engine: colorimetric-regression`,
+        'Engine: colorimetric-regression',
         `Demographic group: ${getDemographicLabel(demographicGroup)}`,
       ]),
     );
@@ -226,26 +250,28 @@ export function ScanScreen({navigation}: Props) {
   const focusScore = 88;
   const stabilityScore = 82;
 
-  const scanQualityScore = useMemo(() => {
-    return Math.round(
-      lightScore * 0.35 + focusScore * 0.35 + stabilityScore * 0.3,
-    );
-  }, [lightScore, focusScore, stabilityScore]);
+  const scanQualityScore = useMemo(
+    () => Math.round(lightScore * 0.35 + focusScore * 0.35 + stabilityScore * 0.3),
+    [lightScore, focusScore, stabilityScore],
+  );
 
   const handleCapture = async () => {
-    if (!hasPermission || !device || !photoOutput || !cameraActive) {
-      Alert.alert(
-        'Camera not ready',
-        'Please wait for the camera to initialize.',
-      );
+    if (!hasPermission) {
+      await requestPermission();
+      return;
+    }
+
+    if (!device || !photoOutput || !cameraActive) {
+      Alert.alert(t('scan', 'cameraUnavailable'), t('scan', 'cameraWait'));
       return;
     }
 
     if (isLoadingMedicalProfile) {
-      Alert.alert(
-        'Profile loading',
-        'Please wait while your medical profile is being loaded.',
-      );
+      Alert.alert('Profile loading', 'Please wait while your medical profile is being loaded.');
+      return;
+    }
+
+    if (isCapturing) {
       return;
     }
 
@@ -254,39 +280,32 @@ export function ScanScreen({navigation}: Props) {
       setCaptureStep('capturing');
 
       const photo = await photoOutput.capturePhotoToFile({}, {});
-      const localPath = `file://${photo.filePath}`;
+      if (!photo?.filePath) {
+        throw new Error('Camera returned an empty photo path.');
+      }
 
+      const localPath = `file://${photo.filePath}`;
       setCaptureStep('analyzing');
       const analysis = await analyzeImageQuality(localPath);
 
       setCaptureStep('processing');
-
       const targetSize = 224;
       const expectedRgbaLength = targetSize * targetSize * 4;
-      const rgba = await getRgbaFromImage(
-        photo.filePath,
-        targetSize,
-        targetSize,
-      );
+      const rgba = await getRgbaFromImage(photo.filePath, targetSize, targetSize);
 
-      if (rgba.length !== expectedRgbaLength) {
+      if (!(rgba instanceof Uint8ClampedArray) || rgba.length !== expectedRgbaLength) {
         throw new Error(
-          `Invalid RGBA length. Expected ${expectedRgbaLength}, got ${rgba.length}`,
+          `Invalid RGBA buffer. Expected ${expectedRgbaLength}, got ${rgba?.length ?? 0}.`,
         );
       }
 
-      const redPresence = checkRedPresenceInCenterROI(
-        rgba,
-        targetSize,
-        targetSize,
-      );
+      const redPresence = checkRedPresenceInCenterROI(rgba, targetSize, targetSize);
+      const demographicGroup = resolveDemographicGroup(medicalProfile);
 
       if (!redPresence.passes) {
-        const demographicGroup = resolveDemographicGroup(medicalProfile);
-
         setDebugMessage(
           toDebugText([
-            `Engine: colorimetric-regression`,
+            'Engine: colorimetric-regression',
             `Demographic group: ${getDemographicLabel(demographicGroup)}`,
             `RGBA length: ${rgba.length}`,
             `ROI pixels: ${redPresence.roiPixelCount}`,
@@ -295,10 +314,9 @@ export function ScanScreen({navigation}: Props) {
             'Rejected: center region does not contain enough blood-like red color.',
           ]),
         );
-
         Alert.alert(
           'Retake photo',
-          'The center of the image does not appear to contain a suitable blood-colored sample. Please place the sample inside the guide and retake the photo.',
+          'Please place the sample inside the guide, use bright indirect light, and retake the photo.',
         );
         return;
       }
@@ -306,24 +324,19 @@ export function ScanScreen({navigation}: Props) {
       const roi = extractGuideRoi(rgba, targetSize, targetSize);
       const rawFeatures = computeColorFeatures(roi.rgba);
       const features = normalizeColorFeatures(rawFeatures);
-
       const calibration = estimateHbFromFeatures(features);
-
       const confidence = estimateConfidence({
         qualityScore: analysis.qualityScore,
         roiCoverage: roi.coverage,
         features,
       });
-
-      const demographicGroup = resolveDemographicGroup(medicalProfile);
       const severity = categorizeHb(calibration.hb, demographicGroup);
       const mappedSeverity = mapSeverityToResultSeverity(severity);
 
       setCaptureStep('finalizing');
-
       setDebugMessage(
         toDebugText([
-          `Engine: colorimetric-regression`,
+          'Engine: colorimetric-regression',
           `Demographic group: ${getDemographicLabel(demographicGroup)}`,
           `ROI coverage: ${(roi.coverage * 100).toFixed(1)}%`,
           `Center red ratio: ${(redPresence.redPixelRatio * 100).toFixed(1)}%`,
@@ -358,15 +371,15 @@ export function ScanScreen({navigation}: Props) {
         severity: mappedSeverity,
       });
     } catch (error: any) {
-      console.error('Scan failed error object:', error);
-      setDebugMessage(`Scan error: ${error?.message ?? 'Unknown error'}`);
+      console.error('Scan failed:', error);
+      const rawMessage = error?.message ?? 'Unknown error';
+      setDebugMessage(`Scan error: ${rawMessage}`);
 
       let message = 'Unable to complete scan. Please try again.';
-      
-      if (error?.message?.includes('Invalid RGBA length')) {
-        message = 'Image processing failed. Please ensure the sample is properly centered and try again.';
-      } else if (error?.message?.includes('Camera')) {
-        message = 'Camera error. Please restart the app and try again.';
+      if (rawMessage.includes('Invalid RGBA') || rawMessage.includes('decode image')) {
+        message = 'Image processing failed. Please retake the photo with the sample centered in the guide.';
+      } else if (rawMessage.toLowerCase().includes('camera')) {
+        message = 'Camera error. Please close and reopen the app, then try again.';
       }
 
       Alert.alert('Scan failed', message);
@@ -380,13 +393,13 @@ export function ScanScreen({navigation}: Props) {
   return (
     <Screen scrollable>
       <SectionHeader
-        title="Scan"
-        subtitle="Capture a guided image and estimate hemoglobin locally"
+        title={t('scan', 'title')}
+        subtitle={t('scan', 'subtitle')}
       />
 
       <InfoBanner
-        title="Capture guidance"
-        description="Use bright indirect light, hold the phone steady, and keep the sample centered inside the guide."
+        title={t('scan', 'captureGuidance')}
+        description={t('scan', 'captureGuidanceDescription')}
       />
 
       <AppCard style={styles.previewCard}>
@@ -405,11 +418,8 @@ export function ScanScreen({navigation}: Props) {
                   ? t('scan', 'cameraUnavailable')
                   : t('scan', 'cameraPermissionRequired')}
               </Text>
-
               <Text style={styles.fallbackText}>
-                {hasPermission
-                  ? t('scan', 'cameraUnavailable')
-                  : t('scan', 'cameraWait')}
+                {hasPermission ? t('scan', 'cameraUnavailable') : t('scan', 'cameraWait')}
               </Text>
             </View>
           )}
@@ -424,9 +434,9 @@ export function ScanScreen({navigation}: Props) {
       ) : null}
 
       <View style={styles.qualityRow}>
-        <QualityChip label={t('scan', 'scanQuality')} value={t('scan', 'good')} tone="good" />
-        <QualityChip label={t('scan', 'scanQuality')} value={t('scan', 'excellent')} tone="good" />
-        <QualityChip label={t('scan', 'scanQuality')} value={t('scan', 'good')} tone="good" />
+        <QualityChip label={t('scan', 'light')} value={t('scan', 'good')} tone="good" />
+        <QualityChip label={t('scan', 'focus')} value={t('scan', 'excellent')} tone="good" />
+        <QualityChip label={t('scan', 'stability')} value={t('scan', 'good')} tone="good" />
       </View>
 
       <ScanQualityBar score={scanQualityScore} />
@@ -436,19 +446,17 @@ export function ScanScreen({navigation}: Props) {
           isCapturing
             ? stepLabel(captureStep, t)
             : isLoadingMedicalProfile
-            ? 'Loading Profile...'
-            : 'Capture & Analyze'
+            ? t('scan', 'loadingProfile')
+            : t('scan', 'captureAndAnalyze')
         }
         onPress={handleCapture}
-        disabled={
-          !showCamera || !cameraActive || isCapturing || isLoadingMedicalProfile
-        }
+        disabled={!showCamera || !cameraActive || isCapturing || isLoadingMedicalProfile}
       />
 
       {isCapturing ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingText}>{stepLabel(captureStep)}</Text>
+          <Text style={styles.loadingText}>{stepLabel(captureStep, t)}</Text>
         </View>
       ) : null}
 
@@ -458,10 +466,7 @@ export function ScanScreen({navigation}: Props) {
 
       {debugMessage ? <Text style={styles.debugText}>{debugMessage}</Text> : null}
 
-      <Text style={styles.disclaimer}>
-        Image analysis is performed locally on the device without requiring an
-        internet connection.
-      </Text>
+      <Text style={styles.disclaimer}>{t('scan', 'localProcessingDisclaimer')}</Text>
     </Screen>
   );
 }
