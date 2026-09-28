@@ -5,6 +5,9 @@ import {StatusBar} from 'react-native';
 import {AppProviders} from './src/app/AppProviders';
 import {RootNavigator} from './src/navigation/RootNavigator';
 import {colors} from './src/theme/colors';
+import {installDebugGlobals} from './src/utils/debugGlobals';
+
+installDebugGlobals();
 
 function App(): React.JSX.Element {
   return (
