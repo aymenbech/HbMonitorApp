@@ -35,7 +35,12 @@ function formatPercent(value: number | null | undefined): string {
   return `${Math.round(value)}%`;
 }
 
-function getSeverityMeta(severity: ResultSeverity | null | undefined, t: (section: any, key: any) => string) {
+type Translate = ReturnType<typeof useLanguage>['t'];
+
+function getSeverityMeta(
+  severity: ResultSeverity | null | undefined,
+  t: Translate,
+) {
   switch (severity) {
     case 'normal':
       return {
@@ -101,9 +106,13 @@ function InfoRow({label, value}: {label: string; value: string}) {
 }
 
 export function ResultScreen({route, navigation}: Props) {
+  const {t} = useLanguage();
   const {imagePath, hbValue, confidence, severity, analysis} = route.params;
 
-  const severityMeta = useMemo(() => getSeverityMeta(severity, t), [severity, t]);
+  const severityMeta = useMemo(
+    () => getSeverityMeta(severity, t),
+    [severity, t],
+  );
 
   const engineLabel =
     analysis?.engine === 'colorimetric-regression'
@@ -143,8 +152,8 @@ export function ResultScreen({route, navigation}: Props) {
       ? analysis.colorFeatures.normalizedRedness.toFixed(4)
       : '—';
 
-  const confidenceLabel = getConfidenceLabel(confidence, t);
-  const qualityLabel = getQualityLabel(qualityScore, t);
+  const confidenceLabel = getConfidenceLabel(confidence);
+  const qualityLabel = getQualityLabel(qualityScore);
 
   return (
     <Screen scrollable>
@@ -214,9 +223,7 @@ export function ResultScreen({route, navigation}: Props) {
       <AppCard style={styles.section}>
         <Text style={styles.sectionTitle}>{t('result', 'disclaimer')}</Text>
         <View style={styles.divider} />
-        <Text style={styles.noteText}>
-          {t('result', 'disclaimer')}
-        </Text>
+        <Text style={styles.noteText}>{t('result', 'disclaimer')}</Text>
       </AppCard>
 
       <PrimaryButton

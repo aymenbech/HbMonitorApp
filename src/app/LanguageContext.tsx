@@ -35,7 +35,7 @@ export function LanguageProvider({children}: PropsWithChildren) {
     }
   };
 
-  const dictionary = language === 'ar' ? ar : en;
+  const dictionary: TranslationTree = language === 'ar' ? ar : (en as unknown as TranslationTree);
   const value = useMemo<LanguageContextValue>(() => ({
     language,
     isRTL: language === 'ar',

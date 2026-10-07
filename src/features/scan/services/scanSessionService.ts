@@ -2,7 +2,7 @@ import RNFS from 'react-native-fs';
 import {decode} from 'base64-arraybuffer';
 
 import {supabase} from '../../../lib/supabase';
-import type {ImageQualityResult} from '../utils/imageQuality';
+import type {ImageQualityResult} from '../../../navigation/types';
 import type {LocalHemoglobinInferenceResult} from './localHemoglobinModel';
 
 type SaveScanSessionParams = {

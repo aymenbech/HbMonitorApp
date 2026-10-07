@@ -2,7 +2,7 @@
 
 import React, {useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Alert, StyleSheet, Text, View} from 'react-native';
-import {CompositeScreenProps} from '@react-navigation/native';
+import {CompositeScreenProps, useIsFocused} from '@react-navigation/native';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {
@@ -28,6 +28,7 @@ import {typography} from '../../../theme/typography';
 import {useAuth} from '../../../app/AuthContext';
 import {useLanguage} from '../../../app/LanguageContext';
 import {supabase} from '../../../lib/supabase';
+import {saveLocalScanRecord} from '../services/localScanHistory';
 
 import type {
   MainTabParamList,
@@ -70,9 +71,25 @@ type RedPresenceCheckResult = {
 
 const toDebugText = (lines: string[]): string => lines.join('\n');
 
+
+function analysisQualityLabel(score: number): string {
+  if (score >= 80) return 'Excellent';
+  if (score >= 60) return 'Good';
+  if (score >= 40) return 'Fair';
+  return 'Poor';
+}
+
+function qualityTone(score: number): 'good' | 'warning' | 'neutral' {
+  if (score >= 60) return 'good';
+  if (score >= 40) return 'warning';
+  return 'neutral';
+}
+
+type Translate = ReturnType<typeof useLanguage>['t'];
+
 function stepLabel(
   step: CaptureStep,
-  t: (section: string, key: string) => string,
+  t: Translate,
 ): string {
   switch (step) {
     case 'capturing':
@@ -151,6 +168,7 @@ function checkRedPresenceInCenterROI(
 export function ScanScreen({navigation}: Props) {
   const {user} = useAuth();
   const {t} = useLanguage();
+  const isFocused = useIsFocused();
   const {hasPermission, requestPermission} = useCameraPermission();
   const device = useCameraDevice('back');
   const photoOutput = usePhotoOutput();
@@ -161,6 +179,7 @@ export function ScanScreen({navigation}: Props) {
   const [medicalProfile, setMedicalProfile] =
     useState<UserMedicalProfile | null>(null);
   const [isLoadingMedicalProfile, setIsLoadingMedicalProfile] = useState(true);
+  const [lastQualityScore, setLastQualityScore] = useState<number | null>(null);
 
   const isCapturing = captureStep !== 'idle';
 
@@ -246,14 +265,7 @@ export function ScanScreen({navigation}: Props) {
     );
   }, [medicalProfile]);
 
-  const lightScore = 85;
-  const focusScore = 88;
-  const stabilityScore = 82;
-
-  const scanQualityScore = useMemo(
-    () => Math.round(lightScore * 0.35 + focusScore * 0.35 + stabilityScore * 0.3),
-    [lightScore, focusScore, stabilityScore],
-  );
+  const scanQualityScore = useMemo(() => lastQualityScore ?? 0, [lastQualityScore]);
 
   const handleCapture = async () => {
     if (!hasPermission) {
@@ -287,6 +299,7 @@ export function ScanScreen({navigation}: Props) {
       const localPath = `file://${photo.filePath}`;
       setCaptureStep('analyzing');
       const analysis = await analyzeImageQuality(localPath);
+      setLastQualityScore(analysis.qualityScore);
 
       setCaptureStep('processing');
       const targetSize = 224;
@@ -334,6 +347,14 @@ export function ScanScreen({navigation}: Props) {
       const mappedSeverity = mapSeverityToResultSeverity(severity);
 
       setCaptureStep('finalizing');
+      await saveLocalScanRecord({
+        userId: user?.id ?? 'local-user',
+        hbValue: calibration.hb,
+        confidence,
+        severity: mappedSeverity,
+        qualityScore: analysis.qualityScore,
+        modelVersion: calibration.modelVersion,
+      }).catch(error => console.warn('Local scan history save failed:', error));
       setDebugMessage(
         toDebugText([
           'Engine: colorimetric-regression',
@@ -408,7 +429,7 @@ export function ScanScreen({navigation}: Props) {
             <Camera
               style={StyleSheet.absoluteFill}
               device={device}
-              isActive={cameraActive}
+              isActive={cameraActive && isFocused}
               outputs={[photoOutput]}
             />
           ) : (
@@ -434,9 +455,9 @@ export function ScanScreen({navigation}: Props) {
       ) : null}
 
       <View style={styles.qualityRow}>
-        <QualityChip label={t('scan', 'light')} value={t('scan', 'good')} tone="good" />
-        <QualityChip label={t('scan', 'focus')} value={t('scan', 'excellent')} tone="good" />
-        <QualityChip label={t('scan', 'stability')} value={t('scan', 'good')} tone="good" />
+        <QualityChip label={t('scan', 'light')} value={lastQualityScore === null ? '—' : analysisQualityLabel(lastQualityScore)} tone={lastQualityScore === null ? 'neutral' : qualityTone(lastQualityScore)} />
+        <QualityChip label={t('scan', 'focus')} value={lastQualityScore === null ? '—' : analysisQualityLabel(lastQualityScore)} tone={lastQualityScore === null ? 'neutral' : qualityTone(lastQualityScore)} />
+        <QualityChip label={t('scan', 'stability')} value={lastQualityScore === null ? '—' : analysisQualityLabel(lastQualityScore)} tone={lastQualityScore === null ? 'neutral' : qualityTone(lastQualityScore)} />
       </View>
 
       <ScanQualityBar score={scanQualityScore} />
@@ -447,7 +468,7 @@ export function ScanScreen({navigation}: Props) {
             ? stepLabel(captureStep, t)
             : isLoadingMedicalProfile
             ? t('scan', 'loadingProfile')
-            : t('scan', 'captureAndAnalyze')
+            : t('scan', 'captureAnalyze')
         }
         onPress={handleCapture}
         disabled={!showCamera || !cameraActive || isCapturing || isLoadingMedicalProfile}
@@ -464,9 +485,9 @@ export function ScanScreen({navigation}: Props) {
         <Text style={styles.debugText}>{t('scan', 'loadingProfile')}</Text>
       ) : null}
 
-      {debugMessage ? <Text style={styles.debugText}>{debugMessage}</Text> : null}
+      {__DEV__ && debugMessage ? <Text style={styles.debugText}>{debugMessage}</Text> : null}
 
-      <Text style={styles.disclaimer}>{t('scan', 'localProcessingDisclaimer')}</Text>
+      <Text style={styles.disclaimer}>{t('scan', 'localProcessing')}</Text>
     </Screen>
   );
 }

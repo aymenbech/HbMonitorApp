@@ -42,7 +42,7 @@ export function ScanQualityBar({score}: ScanQualityBarProps) {
 
       <View style={styles.barWrapper}>
         <LinearGradient
-          colors={['#FF5C8A', '#F59E0B', '#84CC16', '#22C55E']}
+          colors={normalizedScore <= 0 ? ['#2C3444', '#2C3444'] : ['#FF5C8A', '#F59E0B', '#84CC16', '#22C55E']}
           start={{x: 0, y: 0}}
           end={{x: 1, y: 0}}
           style={styles.gradientTrack}
