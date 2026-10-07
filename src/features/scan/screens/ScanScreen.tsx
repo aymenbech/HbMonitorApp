@@ -447,7 +447,7 @@ export function ScanScreen({navigation}: Props) {
             ? stepLabel(captureStep, t)
             : isLoadingMedicalProfile
             ? t('scan', 'loadingProfile')
-            : t('scan', 'captureAndAnalyze')
+            : t('scan', 'captureAnalyze')
         }
         onPress={handleCapture}
         disabled={!showCamera || !cameraActive || isCapturing || isLoadingMedicalProfile}
@@ -466,7 +466,7 @@ export function ScanScreen({navigation}: Props) {
 
       {debugMessage ? <Text style={styles.debugText}>{debugMessage}</Text> : null}
 
-      <Text style={styles.disclaimer}>{t('scan', 'localProcessingDisclaimer')}</Text>
+      <Text style={styles.disclaimer}>{t('scan', 'localProcessing')}</Text>
     </Screen>
   );
 }
