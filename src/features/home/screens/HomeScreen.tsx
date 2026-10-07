@@ -1,14 +1,7 @@
 // src/features/home/screens/HomeScreen.tsx
 
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 
 import {Screen} from '../../../components/Screen';
@@ -21,23 +14,17 @@ import {InsightRow} from '../../../components/ui/InsightRow';
 
 import {colors} from '../../../theme/colors';
 import {spacing} from '../../../theme/spacing';
-import {calculateAgeInfo} from '../../../analysis/interpretation/demographicResolver';
 
 import {useAuth} from '../../../app/AuthContext';
 import {useLanguage} from '../../../app/LanguageContext';
 import {supabase} from '../../../lib/supabase';
+import {calculateAgeInfo} from '../../../analysis/interpretation/demographicResolver';
+import {loadLocalScanHistory, type LocalScanRecord} from '../../scan/services/localScanHistory';
+
 import type {MainTabParamList, ResultSeverity} from '../../../navigation/types';
 
 type SexType = 'male' | 'female';
 type PregnancyStatus = 'not_pregnant' | 'pregnant' | 'unknown';
-
-type LatestResult = {
-  hb_value: number;
-  anemia_severity: ResultSeverity;
-  result_label_en: string | null;
-  recommendation_en: string | null;
-  result_at: string;
-};
 
 type MedicalProfile = {
   sex: SexType | null;
@@ -47,176 +34,119 @@ type MedicalProfile = {
 
 type HomeData = {
   fullName: string | null;
-  latestResult: LatestResult | null;
+  latestResult: LocalScanRecord | null;
   totalScans: number;
-  latestConfidence: number | null;
   medicalProfile: MedicalProfile | null;
 };
 
-function formatDate(iso: string, locale = 'en-US'): string {
-  try {
-    return new Date(iso).toLocaleDateString(locale, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return 'Unknown date';
-  }
+type Props = BottomTabScreenProps<MainTabParamList, 'Home'>;
+
+function formatDate(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function getFirstName(fullName: string | null): string {
-  if (!fullName) return 'there';
-  return fullName.trim().split(' ')[0] || 'there';
+  return fullName?.trim().split(/\s+/)[0] || 'there';
 }
 
-function getMedicalProfileStatus(profile: MedicalProfile | null): {
-  isComplete: boolean;
-  message: string;
-} {
+function getMedicalProfileStatus(profile: MedicalProfile | null) {
   if (!profile?.sex) {
-    return {
-      isComplete: false,
-      message: 'Add biological sex to enable more accurate Hb interpretation.',
-    };
+    return {isComplete: false, message: 'Add biological sex to your profile.'};
+  }
+  if (!profile.date_of_birth) {
+    return {isComplete: false, message: 'Add your date of birth to your profile.'};
   }
 
-  if (!profile?.date_of_birth) {
-    return {
-      isComplete: false,
-      message: 'Add date of birth to complete your health profile.',
-    };
+  const ageYears = calculateAgeInfo(profile.date_of_birth)?.years ?? 0;
+  if (profile.sex === 'female' && ageYears >= 15 && !profile.pregnancy_status) {
+    return {isComplete: false, message: 'Add pregnancy status to your profile.'};
   }
 
-  if (profile.sex === 'female' && !profile.pregnancy_status) {
-    return {
-      isComplete: false,
-      message: 'Add pregnancy status to complete your health profile.',
-    };
-  }
-
-  return {
-    isComplete: true,
-    message: 'Your health profile is complete.',
-  };
+  return {isComplete: true, message: 'Your health profile is complete.'};
 }
 
 function getDemographicSummary(profile: MedicalProfile | null): string {
   if (!profile?.sex) return 'Not set';
-
-  if (profile.sex === 'male') {
-    return 'Adult male';
-  }
-
-  if (profile.pregnancy_status === 'pregnant') {
-    return 'Pregnant female';
-  }
-
+  if (profile.sex === 'male') return 'Adult male';
+  if (profile.pregnancy_status === 'pregnant') return 'Pregnant female';
   return 'Adult female';
 }
 
-type Props = BottomTabScreenProps<MainTabParamList, 'Home'>;
+function severityLabel(
+  severity: ResultSeverity | null | undefined,
+  t: (section: string, key: string) => string,
+) {
+  if (!severity) return t('home', 'noResults');
+  return t('result', severity);
+}
 
 export function HomeScreen({navigation}: Props) {
   const {user} = useAuth();
   const {language, t} = useLanguage();
   const locale = language === 'ar' ? 'ar-DZ' : 'en-US';
 
-  const [data, setData] = useState<HomeData>({
-    fullName: null,
-    latestResult: null,
-    totalScans: 0,
-    latestConfidence: null,
-    medicalProfile: null,
-  });
-
+  const [fullName, setFullName] = useState<string | null>(null);
+  const [medicalProfile, setMedicalProfile] = useState<MedicalProfile | null>(null);
+  const [history, setHistory] = useState<LocalScanRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchHomeData = useCallback(async () => {
-    if (!user?.id) return;
+  const load = useCallback(async () => {
+    if (!user?.id) {
+      setFullName(null);
+      setMedicalProfile(null);
+      setHistory([]);
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      setError(null);
+      const [profileRes, medicalRes, localHistory] = await Promise.all([
+        supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+        supabase
+          .from('patient_medical_profiles')
+          .select('sex,pregnancy_status,date_of_birth')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        loadLocalScanHistory(user.id),
+      ]);
 
-      const [profileRes, latestResultsRes, latestInferenceRes, scansRes, medicalRes] =
-        await Promise.all([
-          supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single(),
+      if (profileRes.error) {
+        console.warn('Home profile load failed:', profileRes.error.message);
+      }
+      if (medicalRes.error) {
+        console.warn('Home medical profile load failed:', medicalRes.error.message);
+      }
 
-          supabase
-            .from('hemoglobin_results')
-            .select(
-              'hb_value, anemia_severity, result_label_en, recommendation_en, result_at',
-            )
-            .eq('user_id', user.id)
-            .order('result_at', {ascending: false})
-            .limit(1),
-
-          supabase
-            .from('model_inferences')
-            .select('confidence_score')
-            .eq('user_id', user.id)
-            .order('inferred_at', {ascending: false})
-            .limit(1),
-
-          supabase
-            .from('scan_sessions')
-            .select('id', {count: 'exact', head: true})
-            .eq('user_id', user.id),
-
-          supabase
-            .from('patient_medical_profiles')
-            .select('sex, pregnancy_status, date_of_birth')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
-
-      const latestResult = latestResultsRes.data?.[0] ?? null;
-      const latestConfidence =
-        latestInferenceRes.data?.[0]?.confidence_score ?? null;
-
-      setData({
-        fullName: profileRes.data?.full_name ?? null,
-        latestResult,
-        totalScans: scansRes.count ?? 0,
-        latestConfidence,
-        medicalProfile: medicalRes.data ?? null,
-      });
-    } catch (err: any) {
-      console.error('HomeScreen: fetchHomeData error', err);
-      setError('Failed to load data. Please try again.');
+      setFullName(profileRes.data?.full_name ?? null);
+      setMedicalProfile(medicalRes.data ?? null);
+      setHistory(localHistory);
+    } catch (error) {
+      console.error('Home load error:', error);
+      setHistory(await loadLocalScanHistory(user.id).catch(() => []));
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, [user?.id]);
 
   useEffect(() => {
-    fetchHomeData();
-  }, [fetchHomeData]);
+    load();
+  }, [load]);
 
-  const onRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    fetchHomeData();
-  }, [fetchHomeData]);
-
-  // ✅ استدعاء الـ useMemo قبل أي return أو if statement
   const medicalStatus = useMemo(
-    () => getMedicalProfileStatus(data.medicalProfile),
-    [data.medicalProfile],
+    () => getMedicalProfileStatus(medicalProfile),
+    [medicalProfile],
+  );
+  const demographic = useMemo(
+    () => getDemographicSummary(medicalProfile),
+    [medicalProfile],
   );
 
-  const demographicSummary = useMemo(
-    () => getDemographicSummary(data.medicalProfile),
-    [data.medicalProfile],
-  );
-
-  // ✅ الآن يمكن وضع شرط التحميل بأمان تام
   if (isLoading) {
     return (
       <Screen>
@@ -227,149 +157,99 @@ export function HomeScreen({navigation}: Props) {
     );
   }
 
-  const {fullName, latestResult, totalScans, latestConfidence} = data;
-
-  const hbDisplay = latestResult
-    ? `${Number(latestResult.hb_value).toFixed(1)}`
-    : '—';
-
-  const confidenceDisplay =
-    latestConfidence !== null && latestConfidence !== undefined
-      ? `${Math.round(Number(latestConfidence) * 100)}%`
-      : '—';
-
-  const severity = (latestResult?.anemia_severity ?? 'normal') as ResultSeverity;
+  const latestResult = history[0] ?? null;
+  const severity = latestResult?.severity ?? null;
+  const hbDisplay = latestResult ? latestResult.hbValue.toFixed(1) : '—';
+  const confidenceDisplay = latestResult ? `${latestResult.confidence}%` : '—';
 
   return (
-    <Screen scrollable>
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{paddingBottom: spacing.xl}}>
-        <SectionHeader
-          title={`Welcome back, ${getFirstName(fullName)}`}
-          subtitle="Monitor your latest hemoglobin activity at a glance"
-        />
+    <Screen scrollable refreshing={false} onRefresh={load}>
+      <SectionHeader
+        title={`Welcome back, ${getFirstName(fullName)}`}
+        subtitle={t('home', 'subtitle')}
+      />
 
-        {error ? (
-          <AppCard style={styles.alertCard}>
-            <Text style={styles.alertTitle}>⚠️ {t('common', 'error')}</Text>
-            <Text style={styles.alertText}>{error}</Text>
-          </AppCard>
-        ) : null}
-
-        {!medicalStatus.isComplete ? (
-          <AppCard style={styles.alertCard}>
-            <Text style={styles.alertTitle}>{t('profile', 'medicalProfile')}</Text>
-            <Text style={styles.alertText}>{medicalStatus.message}</Text>
-            <View style={styles.alertActions}>
-              <QuickActionCard
-                title="Open Profile"
-                subtitle="Add sex, age, and pregnancy details"
-                onPress={() => navigation.navigate('Profile')}
-              />
-            </View>
-          </AppCard>
-        ) : null}
-
-        <View style={styles.metricRow}>
-          <MetricCard
-            label={t('result', 'hemoglobin')}
-            value={hbDisplay}
-            helper={t('result', 'unit')}
-            accentColor={colors.primary}
-          />
-          <MetricCard
-            label={t('result', 'confidence')}
-            value={confidenceDisplay}
-            helper={t('result', 'confidence')}
-            accentColor="#22C55E"
-          />
-        </View>
-
-        <AppCard style={styles.highlightCard}>
-          <StatusBadge status={severity} />
-          <Text style={styles.highlightLabel}>{t('home', 'latestResult')}</Text>
-          <Text style={styles.highlightValue}>
-            {latestResult ? `${hbDisplay} ${t('result', 'unit')}` : t('home', 'noResults')}
-          </Text>
-          <Text style={styles.highlightMeta}>
-            {latestResult
-              ? latestResult.result_label_en ??
-                `Recorded on ${formatDate(latestResult.result_at, locale)}`
-              : t('home', 'startScan')}
-          </Text>
-        </AppCard>
-
-        <Text style={styles.sectionTitle}>{t('home', 'startScan')}</Text>
-        <View style={styles.quickActions}>
+      {!medicalStatus.isComplete ? (
+        <AppCard style={styles.alertCard}>
+          <Text style={styles.alertTitle}>{t('profile', 'medicalProfile')}</Text>
+          <Text style={styles.alertText}>{medicalStatus.message}</Text>
           <QuickActionCard
-            title="Start New Scan"
-            subtitle="Capture a guided sample image"
-            onPress={() => navigation.navigate('Scan')}
-          />
-          <QuickActionCard
-            title="View Trends"
-            subtitle="Open analytics and weekly insights"
-            onPress={() => navigation.navigate('Analytics')}
-          />
-          <QuickActionCard
-            title="Update Profile"
-            subtitle="Review age, sex, and pregnancy data"
+            title={t('profile', 'settings')}
+            subtitle={t('profile', 'medicalProfile')}
             onPress={() => navigation.navigate('Profile')}
           />
-        </View>
-
-        <AppCard>
-          <Text style={styles.sectionTitle}>{t('analytics', 'title')}</Text>
-
-          <InsightRow
-            label={t('result', 'status')}
-            value={latestResult?.anemia_severity ?? t('home', 'noResults')}
-            tone={latestResult?.anemia_severity === 'normal' ? 'good' : 'neutral'}
-          />
-
-          <InsightRow
-            label={t('profile', 'patientType')}
-            value={demographicSummary}
-          />
-
-          <InsightRow
-            label={t('profile', 'medicalProfile')}
-            value={medicalStatus.isComplete ? t('common', 'success') : t('common', 'error')}
-            tone={medicalStatus.isComplete ? 'good' : 'neutral'}
-          />
-
-          <InsightRow
-            label={t('analytics', 'totalScans')}
-            value={
-              totalScans > 0
-                ? `${totalScans}`
-                : t('home', 'noResults')
-            }
-          />
-
-          {latestResult?.recommendation_en ? (
-            <InsightRow
-              label={t('result', 'status')}
-              value={latestResult.recommendation_en}
-            />
-          ) : null}
-
-          {latestResult ? (
-            <InsightRow
-              label={t('profile', 'dateOfBirth')}
-              value={formatDate(latestResult.result_at, locale)}
-            />
-          ) : null}
         </AppCard>
-      </ScrollView>
+      ) : null}
+
+      <View style={styles.metricRow}>
+        <MetricCard
+          label={t('result', 'hemoglobin')}
+          value={hbDisplay}
+          helper={t('result', 'unit')}
+          accentColor={colors.primary}
+        />
+        <MetricCard
+          label={t('result', 'confidence')}
+          value={confidenceDisplay}
+          helper={t('result', 'confidence')}
+          accentColor="#22C55E"
+        />
+      </View>
+
+      <AppCard style={styles.highlightCard}>
+        <StatusBadge status={severity ?? 'normal'} />
+        <Text style={styles.highlightLabel}>{t('home', 'latestResult')}</Text>
+        <Text style={styles.highlightValue}>
+          {latestResult ? `${hbDisplay} ${t('result', 'unit')}` : t('home', 'noResults')}
+        </Text>
+        <Text style={styles.highlightMeta}>
+          {latestResult
+            ? `${severityLabel(severity, t)} • ${formatDate(latestResult.takenAt, locale)}`
+            : t('home', 'startScan')}
+        </Text>
+      </AppCard>
+
+      <Text style={styles.sectionTitle}>{t('home', 'startScan')}</Text>
+      <View style={styles.quickActions}>
+        <QuickActionCard
+          title={t('home', 'startScan')}
+          subtitle={t('scan', 'subtitle')}
+          onPress={() => navigation.navigate('Scan')}
+        />
+        <QuickActionCard
+          title={t('analytics', 'title')}
+          subtitle={t('analytics', 'history')}
+          onPress={() => navigation.navigate('Analytics')}
+        />
+        <QuickActionCard
+          title={t('profile', 'title')}
+          subtitle={t('profile', 'medicalProfile')}
+          onPress={() => navigation.navigate('Profile')}
+        />
+      </View>
+
+      <AppCard>
+        <Text style={styles.sectionTitle}>{t('analytics', 'title')}</Text>
+        <InsightRow
+          label={t('result', 'status')}
+          value={severityLabel(severity, t)}
+          tone={severity === 'normal' ? 'good' : 'neutral'}
+        />
+        <InsightRow
+          label={t('profile', 'patientType')}
+          value={demographic}
+        />
+        <InsightRow
+          label={t('analytics', 'totalScans')}
+          value={String(history.length)}
+        />
+        {latestResult ? (
+          <InsightRow
+            label={t('result', 'confidence')}
+            value={`${latestResult.confidence}%`}
+          />
+        ) : null}
+      </AppCard>
     </Screen>
   );
 }
@@ -395,9 +275,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
-  },
-  alertActions: {
-    marginTop: spacing.sm,
   },
   metricRow: {
     flexDirection: 'row',
