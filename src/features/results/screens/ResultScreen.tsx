@@ -35,9 +35,11 @@ function formatPercent(value: number | null | undefined): string {
   return `${Math.round(value)}%`;
 }
 
+type Translate = ReturnType<typeof useLanguage>['t'];
+
 function getSeverityMeta(
   severity: ResultSeverity | null | undefined,
-  t: (section: string, key: string) => string,
+  t: Translate,
 ) {
   switch (severity) {
     case 'normal':
