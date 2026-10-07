@@ -78,9 +78,11 @@ function getDemographicSummary(profile: MedicalProfile | null): string {
   return 'Adult female';
 }
 
+type Translate = ReturnType<typeof useLanguage>['t'];
+
 function severityLabel(
   severity: ResultSeverity | null | undefined,
-  t: (section: string, key: string) => string,
+  t: Translate,
 ) {
   if (!severity) return t('home', 'noResults');
   return t('result', severity);
