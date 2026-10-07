@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - release/hbmonitor-2026-10
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
