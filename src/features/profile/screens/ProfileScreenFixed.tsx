@@ -19,6 +19,7 @@ export function ProfileScreenFixed() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [dob, setDob] = useState('');
   const [sex, setSex] = useState<'male'|'female'|null>(null);
+  const [pregnancyStatus, setPregnancyStatus] = useState<'pregnant'|'not_pregnant'|'unknown'|null>(null);
   const [patientMode, setPatientMode] = useState<'adult'|'child'>('adult');
   const [childName, setChildName] = useState('');
 
@@ -26,13 +27,14 @@ export function ProfileScreenFixed() {
     if (!user?.id) return;
     Promise.all([
       supabase.from('profiles').select('full_name,email').eq('id', user.id).maybeSingle(),
-      supabase.from('patient_medical_profiles').select('date_of_birth,sex').eq('user_id', user.id).maybeSingle(),
+      supabase.from('patient_medical_profiles').select('date_of_birth,sex,pregnancy_status').eq('user_id', user.id).maybeSingle(),
       AsyncStorage.multiGet(['@hbmonitor_patient_mode','@hbmonitor_child_name']),
     ]).then(([profileRes, medicalRes, stored]) => {
       setName(profileRes.data?.full_name ?? '');
       setEmail(profileRes.data?.email ?? user.email ?? '');
       setDob(medicalRes.data?.date_of_birth ?? '');
       setSex(medicalRes.data?.sex ?? null);
+      setPregnancyStatus(medicalRes.data?.pregnancy_status ?? null);
       const mode = stored[0][1];
       const child = stored[1][1];
       if (mode === 'adult' || mode === 'child') setPatientMode(mode);
@@ -40,13 +42,20 @@ export function ProfileScreenFixed() {
     }).catch(err => console.error('Profile load error', err));
   }, [user?.id, user?.email]);
 
-  const saveMedical = async (nextSex: 'male'|'female'|null = sex, nextDob = dob) => {
+  const saveMedical = async (
+    nextSex: 'male'|'female'|null = sex,
+    nextDob = dob,
+    nextPregnancyStatus: 'pregnant'|'not_pregnant'|'unknown'|null = pregnancyStatus,
+  ) => {
     if (!user?.id) return;
     const {error} = await supabase.from('patient_medical_profiles').upsert({
       user_id: user.id,
       date_of_birth: nextDob || null,
       sex: nextSex,
-      pregnancy_status: nextSex === 'female' ? 'unknown' : 'not_pregnant',
+      pregnancy_status:
+        nextSex === 'female'
+          ? (nextPregnancyStatus ?? 'unknown')
+          : 'not_pregnant',
       updated_at: new Date().toISOString(),
     }, {onConflict: 'user_id'});
     if (error) Alert.alert(t('common','error'), error.message);
@@ -74,6 +83,26 @@ export function ProfileScreenFixed() {
             </TouchableOpacity>
           ))}
         </View>
+        {sex === 'female' && patientMode === 'adult' ? (
+          <>
+            <Text style={styles.section}>{t('profile','pregnancy')}</Text>
+            <View style={styles.row}>
+              {(['not_pregnant','pregnant'] as const).map(value => (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => {
+                    setPregnancyStatus(value);
+                    saveMedical(sex, dob, value);
+                  }}
+                  style={[styles.option, pregnancyStatus === value && styles.active]}>
+                  <Text style={[styles.optionText, pregnancyStatus === value && styles.activeText]}>
+                    {t('profile', value === 'pregnant' ? 'pregnant' : 'notPregnant')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        ) : null}
       </AppCard>
       <AppCard style={styles.card}>
         <Text style={styles.section}>{t('child','currentPatient')}</Text>
