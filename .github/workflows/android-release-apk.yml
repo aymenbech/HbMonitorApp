@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-release-${{ github.sha }}
+  group: android-release-final
   cancel-in-progress: true
 
 jobs:
@@ -34,6 +34,11 @@ jobs:
           distribution: temurin
           java-version: 17
           cache: gradle
+      - name: Prepare Android SDK licenses
+        run: |
+          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+
       - name: Install JavaScript dependencies
         run: npm ci
 
@@ -44,7 +49,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleRelease --no-daemon --stacktrace
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 --console=plain --stacktrace
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
