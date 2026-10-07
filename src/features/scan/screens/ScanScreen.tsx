@@ -2,7 +2,7 @@
 
 import React, {useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Alert, StyleSheet, Text, View} from 'react-native';
-import {CompositeScreenProps} from '@react-navigation/native';
+import {CompositeScreenProps, useIsFocused} from '@react-navigation/native';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {
@@ -166,6 +166,7 @@ function checkRedPresenceInCenterROI(
 export function ScanScreen({navigation}: Props) {
   const {user} = useAuth();
   const {t} = useLanguage();
+  const isFocused = useIsFocused();
   const {hasPermission, requestPermission} = useCameraPermission();
   const device = useCameraDevice('back');
   const photoOutput = usePhotoOutput();
@@ -426,7 +427,7 @@ export function ScanScreen({navigation}: Props) {
             <Camera
               style={StyleSheet.absoluteFill}
               device={device}
-              isActive={cameraActive}
+              isActive={cameraActive && isFocused}
               outputs={[photoOutput]}
             />
           ) : (
@@ -482,7 +483,7 @@ export function ScanScreen({navigation}: Props) {
         <Text style={styles.debugText}>{t('scan', 'loadingProfile')}</Text>
       ) : null}
 
-      {debugMessage ? <Text style={styles.debugText}>{debugMessage}</Text> : null}
+      {__DEV__ && debugMessage ? <Text style={styles.debugText}>{debugMessage}</Text> : null}
 
       <Text style={styles.disclaimer}>{t('scan', 'localProcessing')}</Text>
     </Screen>
