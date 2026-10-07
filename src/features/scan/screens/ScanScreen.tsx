@@ -85,9 +85,11 @@ function qualityTone(score: number): 'good' | 'warning' | 'neutral' {
   return 'neutral';
 }
 
+type Translate = ReturnType<typeof useLanguage>['t'];
+
 function stepLabel(
   step: CaptureStep,
-  t: (section: string, key: string) => string,
+  t: Translate,
 ): string {
   switch (step) {
     case 'capturing':
