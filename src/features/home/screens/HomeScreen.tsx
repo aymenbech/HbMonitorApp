@@ -21,6 +21,7 @@ import {InsightRow} from '../../../components/ui/InsightRow';
 
 import {colors} from '../../../theme/colors';
 import {spacing} from '../../../theme/spacing';
+import {calculateAgeInfo} from '../../../analysis/interpretation/demographicResolver';
 
 import {useAuth} from '../../../app/AuthContext';
 import {useLanguage} from '../../../app/LanguageContext';
