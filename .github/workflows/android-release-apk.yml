@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - release/hbmonitor-2026-10
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+    workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-release-apk:
