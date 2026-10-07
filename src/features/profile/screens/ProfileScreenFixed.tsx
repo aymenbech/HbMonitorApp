@@ -28,15 +28,18 @@ export function ProfileScreenFixed() {
     Promise.all([
       supabase.from('profiles').select('full_name,email').eq('id', user.id).maybeSingle(),
       supabase.from('patient_medical_profiles').select('date_of_birth,sex,pregnancy_status').eq('user_id', user.id).maybeSingle(),
-      AsyncStorage.multiGet(['@hbmonitor_patient_mode','@hbmonitor_child_name']),
+      Promise.all([
+        AsyncStorage.getItem('@hbmonitor_patient_mode'),
+        AsyncStorage.getItem('@hbmonitor_child_name'),
+      ]),
     ]).then(([profileRes, medicalRes, stored]) => {
       setName(profileRes.data?.full_name ?? '');
       setEmail(profileRes.data?.email ?? user.email ?? '');
       setDob(medicalRes.data?.date_of_birth ?? '');
       setSex(medicalRes.data?.sex ?? null);
       setPregnancyStatus(medicalRes.data?.pregnancy_status ?? null);
-      const mode = stored[0][1];
-      const child = stored[1][1];
+      const mode = stored[0];
+      const child = stored[1];
       if (mode === 'adult' || mode === 'child') setPatientMode(mode);
       if (child) setChildName(child);
     }).catch(err => console.error('Profile load error', err));
@@ -113,7 +116,7 @@ export function ProfileScreenFixed() {
             </TouchableOpacity>
           ))}
         </View>
-        {patientMode === 'child' && <TextInput value={childName} onChangeText={v => {setChildName(v); AsyncStorage.setItem('@hbmonitor_child_name',v);}} placeholder={t('child','childName')} placeholderTextColor={colors.textSecondary} style={styles.input}/>} 
+        {patientMode === 'child' && <TextInput value={childName} onChangeText={v => {setChildName(v); AsyncStorage.setItem('@hbmonitor_child_name',v);}} placeholder={t('profile','childName')} placeholderTextColor={colors.textSecondary} style={styles.input}/>} 
       </AppCard>
       <AppCard style={styles.card}>
         <Text style={styles.section}>{t('settings','language')}</Text>
